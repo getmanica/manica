@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "bump-minor-pre-major": true,
+  "include-component-in-tag": true,
+  "packages": {
+    "apps/plane": { "component": "plane" },
+    "apps/agent": { "component": "agent" }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "manica",
+      "components": ["plane", "agent"]
+    }
+  ]
+}

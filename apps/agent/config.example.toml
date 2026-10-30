@@ -1,0 +1,17 @@
+# Copy to $XDG_CONFIG_HOME/manica/config.toml (~/.config/manica/config.toml;
+# %APPDATA%\manica\config.toml on Windows), or pass --config-dir.
+
+[plane]
+# Where the plane is reachable.
+url = "http://localhost:3000"
+# The token shown when the agent was created in the plane. Can also be set
+# with MANICA_AGENT_TOKEN. Keep this file readable only by you (chmod 600).
+token = "mna_..."
+# Seconds between polls for jobs (1 to 20).
+# poll_interval = 5
+
+[agent]
+# Where runner builds are downloaded and runners run. Defaults to
+# $XDG_DATA_HOME/manica (~/.local/share/manica; %LOCALAPPDATA%\manica on
+# Windows).
+# data_dir = "/var/lib/manica"

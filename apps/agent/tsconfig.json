@@ -1,0 +1,7 @@
+{
+  "extends": "@manica/tsconfig/bun.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src", "test"]
+}

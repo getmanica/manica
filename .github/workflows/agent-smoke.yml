@@ -1,0 +1,73 @@
+name: agent smoke build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/agent/**
+      - apps/plane/**
+      - packages/**
+      - bun.lock
+      - package.json
+      - .github/workflows/agent-smoke.yml
+  pull_request:
+    paths:
+      - apps/agent/**
+      - apps/plane/**
+      - packages/**
+      - bun.lock
+      - package.json
+      - .github/workflows/agent-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: build (linux-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: build
+        working-directory: apps/agent
+        run: bun run build
+      - name: smoke test
+        working-directory: apps/agent
+        run: |
+          ./dist/manica-agent --version
+          ./dist/manica-agent --help
+
+  macos:
+    name: build (macos-arm64)
+    # One of our own runners, picked up by a Manica agent through the plane.
+    # They don't take pull requests from forks: that code would run on our
+    # machines.
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, manica, macos, arm64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: build
+        working-directory: apps/agent
+        run: bun run build
+      - name: smoke test
+        working-directory: apps/agent
+        run: |
+          ./dist/manica-agent --version
+          ./dist/manica-agent --help
