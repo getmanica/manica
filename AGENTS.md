@@ -27,3 +27,4 @@ Run from the repo root (Bun only, no npm/pnpm):
 
 - organized in services and controllers
 - use typed errors
+- when spinning up the dev server to test changes, use the embedded PGlite database instead of docker Postgres: `DATABASE_URL= bun src/index.ts` from `apps/plane` (an unset `DATABASE_URL` outside production falls back to PGlite in `.pglite/`; `rm -rf .pglite` for a clean db)

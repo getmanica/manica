@@ -1,7 +1,11 @@
 {
-  "extends": "@manica/tsconfig/bun.json",
+  "extends": "@manica/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["bun"]
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
+    "paths": {
+      "@/*": ["./src/web/*"]
+    }
   },
   "include": ["src", "drizzle.config.ts"]
 }

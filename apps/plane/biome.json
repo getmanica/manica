@@ -2,6 +2,6 @@
   "root": false,
   "extends": "//",
   "files": {
-    "includes": ["**", "!drizzle"]
+    "includes": ["**", "!drizzle", "!src/web/components/ui"]
   }
 }
