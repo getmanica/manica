@@ -1,0 +1,23 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+# release-please acts through RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN: the
+# releases it creates have to trigger the release workflow, and events raised
+# by GITHUB_TOKEN never trigger workflows.
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

@@ -1,0 +1,141 @@
+name: agent release
+
+# Runs on the agent-vX.Y.Z releases release-please publishes: builds the agent
+# for every platform in apps/agent/scripts/platforms.ts, attaches the
+# executables to the release, and publishes them to npm as @manica/agent and
+# one @manica/agent-<os>-<cpu> package per platform.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    if: startsWith(github.event.release.tag_name, 'agent-v')
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            smoke: manica-agent-linux-x64
+          # The macOS executables are built on macOS, where Bun gives them
+          # the ad-hoc signature Apple Silicon refuses to run them without.
+          # One of our own runners, picked up by a Manica agent through the
+          # plane.
+          - os: darwin
+            runner: [self-hosted, manica, macos, arm64]
+            smoke: manica-agent-darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: check version
+        run: |
+          version=$(jq -r .version apps/agent/package.json)
+          if [ "agent-v$version" != "$TAG" ]; then
+            echo "::error::$TAG does not match apps/agent/package.json ($version)"
+            exit 1
+          fi
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: build
+        working-directory: apps/agent
+        run: bun scripts/compile.ts --os "${{ matrix.os }}"
+      - name: smoke test
+        working-directory: apps/agent/dist/release
+        run: |
+          ./${{ matrix.smoke }} --version
+          ./${{ matrix.smoke }} --help
+      - uses: actions/upload-artifact@v7
+        with:
+          name: agent-${{ matrix.os }}
+          path: apps/agent/dist/release/
+          if-no-files-found: error
+          retention-days: 7
+
+  github:
+    name: attach to release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: agent-*
+          path: release
+          merge-multiple: true
+      - name: checksums
+        working-directory: release
+        run: sha256sum manica-agent-* > SHA256SUMS
+      # --clobber, so a rerun replaces what a failed run uploaded.
+      - name: upload
+        working-directory: release
+        run: gh release upload "$TAG" manica-agent-* SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+
+  npm:
+    name: publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: read
+      # npm trusted publishing: the job authenticates through OIDC.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      # Trusted publishing needs npm 11.5.1 or later.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: agent-*
+          path: apps/agent/dist/release
+          merge-multiple: true
+      - name: stage
+        working-directory: apps/agent
+        run: bun scripts/npm.ts > "$RUNNER_TEMP/packages"
+      # The platform packages go first: @manica/agent depends on them. A
+      # version already on npm is skipped, so a rerun picks up where a failed
+      # run stopped. Prereleases go to the next dist-tag, not latest. Every
+      # package has to trust this workflow on npm, there is no token.
+      - name: publish
+        run: |
+          tag=latest
+          if [ "$PRERELEASE" = true ]; then tag=next; fi
+          while read -r dir; do
+            name=$(jq -r .name "$dir/package.json")
+            version=$(jq -r .version "$dir/package.json")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already published"
+              continue
+            fi
+            npm publish "$dir" --access public --tag "$tag"
+          done < "$RUNNER_TEMP/packages"
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}

@@ -1,0 +1,110 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "cab5ed69-1ac2-462b-ab2c-5c7ac3c5cbb7",
+  "prevIds": [
+    "eb14ed35-35a6-4281-bbf3-8af0a66f2228"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "agent",
+        "slots"
+      ],
+      "writes": [
+        "s|col|public.agent.slots",
+        "n|col|public.agent.slots",
+        "e|col|public.agent.slots"
+      ],
+      "reads": [
+        "n|tbl|public.agent",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "agent",
+        "labels"
+      ],
+      "writes": [
+        "s|col|public.agent.labels",
+        "n|col|public.agent.labels",
+        "e|col|public.agent.labels"
+      ],
+      "reads": [
+        "n|tbl|public.agent",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "agent"
+      ],
+      "writes": [
+        "s|ck|public.agent.agent_slots_positive",
+        "n|ck|public.agent.agent_slots_positive",
+        "e|ck|public.agent.agent_slots_positive",
+        "n|con|public.agent.agent_slots_positive"
+      ],
+      "reads": [
+        "n|tbl|public.agent",
+        "n|sch|public",
+        "n|col|public.agent.slots"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "slots",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "labels",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_slots_positive",
+        "value": "\"slots\" > 0",
+        "entityType": "checks"
+      }
+    }
+  ]
+}
