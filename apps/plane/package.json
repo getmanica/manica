@@ -1,0 +1,25 @@
+{
+  "name": "plane",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-types": "tsc",
+    "db:generate": "drizzle-kit generate",
+    "dev": "bun --watch src/index.ts",
+    "format": "biome format --write",
+    "format:check": "biome format",
+    "lint": "biome lint",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "better-auth": "^1.7.14",
+    "drizzle-orm": "1.0.0-rc.5",
+    "elysia": "2.0.0-rc.1"
+  },
+  "devDependencies": {
+    "@manica/tsconfig": "workspace:*",
+    "@types/bun": "catalog:",
+    "drizzle-kit": "1.0.0-rc.5",
+    "typescript": "catalog:"
+  }
+}
