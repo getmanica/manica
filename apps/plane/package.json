@@ -2,6 +2,9 @@
   "name": "plane",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/types.ts"
+  },
   "scripts": {
     "check-types": "tsc",
     "db:generate": "drizzle-kit generate",

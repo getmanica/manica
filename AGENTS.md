@@ -21,3 +21,9 @@ Run from the repo root (Bun only, no npm/pnpm):
 ## Collaboration
 
 - when working on a new feature if a later commit in the branch is a fix for that feature it becomes a fixup; the feature that ships should not ship with a fix in the same pr
+
+
+## Plane
+
+- organized in services and controllers
+- use typed errors
