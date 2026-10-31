@@ -1,11 +1,13 @@
 import {
   boolean,
   index,
+  pgEnum,
   pgTable,
   text,
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core'
+import { agentArches, agentOses } from '../agents/platform'
 import type { ForgeKind } from '../forges/forge'
 
 export const user = pgTable('user', {
@@ -186,5 +188,41 @@ export const forgeApp = pgTable(
       table.externalId,
     ),
     index('forge_app_organizationId_idx').on(table.organizationId),
+  ],
+)
+
+export const agentOs = pgEnum('agent_os', agentOses)
+export const agentArch = pgEnum('agent_arch', agentArches)
+
+// A machine running the Manica agent, owned by an organization. Only a
+// SHA-256 hash of the agent's token is stored: the token itself is shown
+// once, when the agent is created. `lastSeenAt` is set by the agent once it
+// connects.
+export const agent = pgTable(
+  'agent',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    os: agentOs('os').notNull(),
+    arch: agentArch('arch').notNull(),
+    lastSeenAt: timestamp('last_seen_at'),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    createdById: text('created_by_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique('agent_organizationId_name_unique').on(
+      table.organizationId,
+      table.name,
+    ),
   ],
 )

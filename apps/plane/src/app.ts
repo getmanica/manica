@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { agentsController } from './agents/agents.controller'
 import { auth, authMacro } from './auth'
 import { forgeAppsController } from './forges/apps.controller'
 import { forgeWebhooksController } from './forges/webhooks.controller'
@@ -7,6 +8,7 @@ const api = new Elysia({ prefix: '/api' })
   .use(authMacro)
   .get('/health', () => ({ status: 'ok' }))
   .get('/me', { auth: true }, ({ user }) => user)
+  .use(agentsController)
   .use(forgeAppsController)
   .use(forgeWebhooksController)
 

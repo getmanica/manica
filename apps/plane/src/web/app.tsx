@@ -1,6 +1,7 @@
 import { Redirect, Route, Switch } from 'wouter'
 import { AppLayout } from '@/components/layout'
 import { authClient } from '@/lib/auth'
+import { Agents } from '@/pages/agents'
 import {
   ForgeAppSetupError,
   ForgeAppSetupSuccess,
@@ -35,6 +36,9 @@ export const App = () => {
         </Route>
         <Route path="/forge-apps/setup/error">
           <ForgeAppSetupError />
+        </Route>
+        <Route path="/agents">
+          <Agents />
         </Route>
         <Route path="/forge-apps">
           <ForgeApps />

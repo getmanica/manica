@@ -1,0 +1,392 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "eb14ed35-35a6-4281-bbf3-8af0a66f2228",
+  "prevIds": [
+    "98fa9839-2054-4231-8317-1ca092a1d22e"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "agent_arch"
+      ],
+      "writes": [
+        "s|enum|public.agent_arch",
+        "n|enum|public.agent_arch",
+        "e|enum|public.agent_arch",
+        "n|type|public.agent_arch"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "agent_os"
+      ],
+      "writes": [
+        "s|enum|public.agent_os",
+        "n|enum|public.agent_os",
+        "e|enum|public.agent_os",
+        "n|type|public.agent_os"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "agent"
+      ],
+      "writes": [
+        "s|tbl|public.agent",
+        "n|tbl|public.agent",
+        "e|tbl|public.agent",
+        "n|rel|public.agent",
+        "n|type|public.agent",
+        "n|rel|public.agent_pkey",
+        "n|rel|public.agent_organizationId_name_unique",
+        "n|rel|public.agent_token_hash_key"
+      ],
+      "reads": [
+        "n|sch|public",
+        "n|enum|public.agent_os",
+        "n|enum|public.agent_arch"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "agent"
+      ],
+      "writes": [
+        "s|fk|public.agent.agent_organization_id_organization_id_fkey",
+        "n|fk|public.agent.agent_organization_id_organization_id_fkey",
+        "e|fk|public.agent.agent_organization_id_organization_id_fkey",
+        "n|con|public.agent.agent_organization_id_organization_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.agent",
+        "n|sch|public",
+        "n|tbl|public.organization",
+        "n|sch|public",
+        "n|col|public.agent.organization_id",
+        "n|col|public.organization.id",
+        "e|uniqueness|public.organization.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "agent"
+      ],
+      "writes": [
+        "s|fk|public.agent.agent_created_by_id_user_id_fkey",
+        "n|fk|public.agent.agent_created_by_id_user_id_fkey",
+        "e|fk|public.agent.agent_created_by_id_user_id_fkey",
+        "n|con|public.agent.agent_created_by_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.agent",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.agent.created_by_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "agent",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "agent_arch",
+        "values": [
+          "arm64",
+          "x86_64"
+        ],
+        "entityType": "enums"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "agent_os",
+        "values": [
+          "linux",
+          "darwin",
+          "windows"
+        ],
+        "entityType": "enums"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "token_hash",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "os",
+        "type": "agent_os",
+        "typeSchema": "public",
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "arch",
+        "type": "agent_arch",
+        "typeSchema": "public",
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "last_seen_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "organization_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "created_by_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "created_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "updated_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_organization_id_organization_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "organization_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organization",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_created_by_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "created_by_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "SET NULL",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_organizationId_name_unique",
+        "nameExplicit": true,
+        "columns": [
+          "organization_id",
+          "name"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "agent",
+        "name": "agent_token_hash_key",
+        "nameExplicit": false,
+        "columns": [
+          "token_hash"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    }
+  ]
+}

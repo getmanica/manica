@@ -25,6 +25,7 @@ export const relations = defineRelations(schema, (r) => ({
     members: r.many.member(),
     invitations: r.many.invitation(),
     forgeApps: r.many.forgeApp(),
+    agents: r.many.agent(),
   },
   member: {
     organization: r.one.organization({
@@ -58,6 +59,17 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     createdBy: r.one.user({
       from: r.forgeApp.createdById,
+      to: r.user.id,
+    }),
+  },
+  agent: {
+    organization: r.one.organization({
+      from: r.agent.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    createdBy: r.one.user({
+      from: r.agent.createdById,
       to: r.user.id,
     }),
   },

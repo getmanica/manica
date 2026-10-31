@@ -27,4 +27,4 @@ Run from the repo root (Bun only, no npm/pnpm):
 
 - organized in services and controllers
 - use typed errors
-- when spinning up the dev server to test changes, use the embedded PGlite database instead of docker Postgres: `DATABASE_URL= bun src/index.ts` from `apps/plane` (an unset `DATABASE_URL` outside production falls back to PGlite in `.pglite/`; `rm -rf .pglite` for a clean db)
+- the database is Postgres, from the root `compose.yaml` (`docker compose up -d`; set `POSTGRES_PORT` if 5432 is taken); `DATABASE_URL` is required. Migrations run at startup
