@@ -40,3 +40,21 @@ export class ForgeWebhookUrlNotPublicError extends HTTPError.id(
     this.detail = `The forge can't deliver webhooks to ${url}. Set PUBLIC_URL to a publicly reachable URL, e.g. a tunnel in development.`
   }
 }
+
+// The forge failed a request plane made to it, or couldn't be reached.
+export class ForgeRequestFailedError extends HTTPError.id(
+  'FORGE_REQUEST_FAILED',
+  502,
+) {
+  override readonly detail: string
+
+  constructor(detail: string) {
+    super()
+    this.detail = detail
+  }
+}
+
+export class RunnerNameTakenError extends HTTPError.id(
+  'RUNNER_NAME_TAKEN',
+  409,
+) {}

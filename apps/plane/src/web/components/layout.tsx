@@ -1,4 +1,9 @@
-import { LayoutDashboardIcon, PlugIcon, ServerIcon } from 'lucide-react'
+import {
+  LayoutDashboardIcon,
+  ListChecksIcon,
+  PlugIcon,
+  ServerIcon,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useRoute } from 'wouter'
 import { OrganizationSwitcher } from '@/components/organization-switcher'
@@ -22,6 +27,7 @@ import { UserMenu } from '@/components/user-menu'
 
 const nav = [
   { href: '/', label: 'Overview', icon: LayoutDashboardIcon },
+  { href: '/jobs', label: 'Jobs', icon: ListChecksIcon },
   { href: '/agents', label: 'Agents', icon: ServerIcon },
   { href: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
 ]

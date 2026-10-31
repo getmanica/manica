@@ -6,7 +6,11 @@ import {
   ForgeWebhookUrlNotPublicError,
   InvalidWebhookSignatureError,
 } from '../errors'
-import type { Forge } from '../forge'
+import type { Forge, JobEvent, JobStatus } from '../forge'
+import { createClients } from './client'
+import { type GithubJob, toJobEvent } from './jobs'
+import { createReconcileApi } from './reconcile'
+import { createRunnersApi } from './runners'
 
 const apiHeaders = {
   accept: 'application/vnd.github+json',
@@ -26,10 +30,18 @@ type ManifestConversion = {
   pem: string
 }
 
-// https://docs.github.com/en/webhooks/webhook-events-and-payloads#workflow_job
 type WorkflowJobPayload = {
-  workflow_job: { id: number; labels: string[] }
+  workflow_job: GithubJob
   repository: { full_name: string }
+  installation: { id: number }
+}
+
+// `waiting` (for a deployment environment's approval) is followed by a
+// `queued` once approved, so it needs no handling of its own.
+const jobStatusByAction: Record<string, JobStatus> = {
+  'workflow_job.queued': 'queued',
+  'workflow_job.in_progress': 'in_progress',
+  'workflow_job.completed': 'completed',
 }
 
 // GitHub rejects manifests whose webhook URL it can't reach, on a page that
@@ -40,8 +52,12 @@ const isLocalHostname = (hostname: string) =>
   hostname === '[::1]' ||
   hostname.startsWith('127.')
 
+const clients = createClients()
+
 export const github: Forge = {
   kind: 'github',
+  ...createRunnersApi(clients),
+  ...createReconcileApi(clients),
 
   setup({ appId, state, owner }) {
     if (isLocalHostname(new URL(env.publicUrl).hostname)) {
@@ -121,16 +137,20 @@ export const github: Forge = {
         throw error
       })
 
-    return events
-      .filter((event) => event.kindRaw === 'workflow_job.queued')
-      .map((event) => {
-        const payload = event.payload as WorkflowJobPayload
-        return {
-          type: 'job.queued',
-          jobId: String(payload.workflow_job.id),
-          repository: payload.repository.full_name,
-          labels: payload.workflow_job.labels,
-        }
-      })
+    return events.flatMap((event): JobEvent[] => {
+      const status = event.kindRaw && jobStatusByAction[event.kindRaw]
+      if (!status) return []
+      const {
+        workflow_job: job,
+        repository,
+        installation,
+      } = event.payload as WorkflowJobPayload
+      return [
+        toJobEvent(job, status, {
+          repository: repository.full_name,
+          installationId: String(installation.id),
+        }),
+      ]
+    })
   },
 }

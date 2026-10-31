@@ -11,6 +11,7 @@
       "dependsOn": ["^check-types"]
     },
     "lint": {},
+    "test": {},
     "format": {
       "cache": false
     },

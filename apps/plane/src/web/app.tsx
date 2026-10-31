@@ -8,6 +8,7 @@ import {
 } from '@/pages/forge-app-setup'
 import { ForgeApps } from '@/pages/forge-apps'
 import { Home } from '@/pages/home'
+import { Jobs } from '@/pages/jobs'
 import { Login } from '@/pages/login'
 
 export const App = () => {
@@ -36,6 +37,9 @@ export const App = () => {
         </Route>
         <Route path="/forge-apps/setup/error">
           <ForgeAppSetupError />
+        </Route>
+        <Route path="/jobs">
+          <Jobs />
         </Route>
         <Route path="/agents">
           <Agents />

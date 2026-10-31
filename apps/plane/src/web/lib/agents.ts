@@ -1,6 +1,13 @@
 import type { Treaty } from '@elysia/eden'
 import type { api } from '@/lib/api'
 
+export {
+  builtInLabels,
+  isValidLabel,
+  MAX_CUSTOM_LABELS,
+  MAX_LABEL_LENGTH,
+} from '../../agents/labels'
+
 export type Agent = Treaty.Data<(typeof api)['agents']['get']>[number]
 
 export const osLabels: Record<Agent['os'], string> = {

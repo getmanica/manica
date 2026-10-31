@@ -25,12 +25,51 @@ export type ForgeRegisteredApp = {
   secrets: ForgeSecrets
 }
 
-// A CI job waiting for a runner with matching labels.
-export type JobQueuedEvent = {
-  type: 'job.queued'
-  jobId: string
+export const jobStatuses = ['queued', 'in_progress', 'completed'] as const
+export type JobStatus = (typeof jobStatuses)[number]
+
+// What the forge says about a CI job: it's waiting for a runner with
+// matching labels, a runner picked it up, or it's done. Deliveries can come
+// late, twice or out of order. `runner*` are set once a runner picked it
+// up, `conclusion` once it completed.
+export type JobEvent = {
+  type: 'job'
+  status: JobStatus
+  externalId: string
+  runId: string
+  installationId: string
   repository: string
+  name: string
+  url: string
   labels: string[]
+  externalRunnerId: string | null
+  runnerName: string | null
+  conclusion: string | null
+  queuedAt: Date
+  startedAt: Date | null
+  completedAt: Date | null
+}
+
+// An app registered on the forge, to act as. `externalId` is the forge's id
+// for it.
+export type ForgeAppContext = {
+  externalId: string
+  secrets: ForgeSecrets
+}
+
+// Where a runner is registered: on one repository, through one installation
+// of the app.
+export type RunnerScope = {
+  app: ForgeAppContext
+  installationId: string
+  repository: string
+}
+
+// A registered just-in-time runner. `config` is the credential the runner
+// starts with: it's handed to the agent once and never stored.
+export type CreatedRunner = {
+  externalRunnerId: string
+  config: string
 }
 
 export type Forge = {
@@ -49,5 +88,26 @@ export type Forge = {
     headers: Headers
     body: string
     secrets: ForgeSecrets
-  }): Promise<JobQueuedEvent[]>
+  }): Promise<JobEvent[]>
+  // Registers a one-shot runner that picks up a job asking for `labels`.
+  // Rejects with `RunnerNameTakenError` if `name` is already registered.
+  createRunner(
+    input: RunnerScope & { name: string; labels: string[] },
+  ): Promise<CreatedRunner>
+  // The id of the runner registered as `name`, if there is one: for when
+  // `createRunner`'s outcome is unknown.
+  findRunner(input: RunnerScope & { name: string }): Promise<string | undefined>
+  // Unregisters a runner. A runner that's gone already counts as deleted;
+  // one running a job can't be deleted yet.
+  deleteRunner(
+    input: RunnerScope & { externalRunnerId: string },
+  ): Promise<'deleted' | 'busy'>
+  // What the forge says about a job now, or undefined if it's gone (or the
+  // app lost access to it).
+  getJob(
+    input: RunnerScope & { externalId: string },
+  ): Promise<JobEvent | undefined>
+  // Asks the forge to send again the job deliveries since `since` that the
+  // plane failed to receive. Returns how many it asked for.
+  redeliverFailed(input: { app: ForgeAppContext; since: Date }): Promise<number>
 }

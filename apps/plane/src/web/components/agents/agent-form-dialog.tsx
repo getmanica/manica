@@ -10,7 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -20,7 +25,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
-import { type Agent, archLabels, osLabels } from '@/lib/agents'
+import {
+  type Agent,
+  archLabels,
+  builtInLabels,
+  isValidLabel,
+  MAX_CUSTOM_LABELS,
+  MAX_LABEL_LENGTH,
+  osLabels,
+} from '@/lib/agents'
 import { api, errorDetail } from '@/lib/api'
 
 const PlatformSelect = <Value extends string>({
@@ -58,13 +71,29 @@ const PlatformSelect = <Value extends string>({
   </Field>
 )
 
+// Labels are typed as a list separated by commas or spaces.
+const parseLabels = (value: string) =>
+  value.split(/[\s,]+/).filter((label) => label.length > 0)
+
 const readForm = (form: HTMLFormElement) => {
   const data = new FormData(form)
   return {
     name: String(data.get('name')).trim(),
     os: data.get('os') as Agent['os'] | null,
     arch: data.get('arch') as Agent['arch'] | null,
+    slots: Number(data.get('slots')),
+    labels: parseLabels(String(data.get('labels'))),
   }
+}
+
+// Why the custom labels can't be saved, if they can't.
+const labelsError = (labels: string[]) => {
+  if (labels.length > MAX_CUSTOM_LABELS) {
+    return `Use at most ${MAX_CUSTOM_LABELS} labels`
+  }
+  return labels.every(isValidLabel)
+    ? null
+    : `Labels can be at most ${MAX_LABEL_LENGTH} characters`
 }
 
 // Creates an agent, then shows its token; or, given an `agent`, edits it.
@@ -85,17 +114,28 @@ export const AgentFormDialog = ({
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const { name, os, arch } = readForm(event.currentTarget)
+    const { name, os, arch, slots, labels } = readForm(event.currentTarget)
     if (!os || !arch) {
       setError('Choose the machine’s operating system and architecture')
+      return
+    }
+    const invalidLabels = labelsError(labels)
+    if (invalidLabels) {
+      setError(invalidLabels)
       return
     }
 
     setPending(true)
     setError(null)
     const result = agent
-      ? await api.agents({ id: agent.id }).patch({ name, os, arch })
-      : await api.agents.post({ name, os, arch })
+      ? await api.agents({ id: agent.id }).patch({
+          name,
+          os,
+          arch,
+          slots,
+          labels,
+        })
+      : await api.agents.post({ name, os, arch, slots, labels })
     setPending(false)
     if (result.error) {
       setError(errorDetail(result.error))
@@ -166,6 +206,37 @@ export const AgentFormDialog = ({
                   defaultValue={agent?.arch}
                 />
               </div>
+              <Field>
+                <FieldLabel htmlFor="agent-slots">Concurrent jobs</FieldLabel>
+                <Input
+                  id="agent-slots"
+                  name="slots"
+                  type="number"
+                  min={1}
+                  max={64}
+                  step={1}
+                  defaultValue={agent?.slots ?? 1}
+                  required
+                />
+                <FieldDescription>
+                  How many jobs the machine runs at the same time.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="agent-labels">Labels</FieldLabel>
+                <Input
+                  id="agent-labels"
+                  name="labels"
+                  placeholder="gpu, xcode-16"
+                  defaultValue={agent?.labels.join(', ')}
+                  autoComplete="off"
+                />
+                <FieldDescription>
+                  {agent
+                    ? `Extra runs-on labels, on top of: ${builtInLabels(agent).join(', ')}.`
+                    : 'Extra runs-on labels, on top of the machine’s name, operating system and architecture.'}
+                </FieldDescription>
+              </Field>
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>

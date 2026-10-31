@@ -11,6 +11,7 @@ Run from the repo root (Bun only, no npm/pnpm):
 
 - `bun run dev`: start everything
 - `bun run check-types`, `bun run lint`, `bun run format:check`
+- `bun run test`: plane tests run against a throwaway database on the Postgres from `DATABASE_URL` (see `apps/plane/test/setup.ts`)
 
 ## Conventions
 

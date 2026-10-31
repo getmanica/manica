@@ -26,6 +26,7 @@ const toPublic = ({
   organizationId: __,
   createdById: ___,
   updatedAt: ____,
+  deliveriesCheckedAt: _____,
   ...app
 }: typeof forgeApp.$inferSelect) => app
 

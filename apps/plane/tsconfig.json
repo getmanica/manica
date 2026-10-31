@@ -7,5 +7,5 @@
       "@/*": ["./src/web/*"]
     }
   },
-  "include": ["src", "drizzle.config.ts"]
+  "include": ["src", "test", "drizzle.config.ts"]
 }

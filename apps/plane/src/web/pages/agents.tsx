@@ -26,6 +26,24 @@ const column = createDataTableColumnHelper<Agent>()
 const time = (date: Date | string | null) =>
   date ? new Date(date).getTime() : Number.NEGATIVE_INFINITY
 
+const Label = ({ children }: { children: string }) => (
+  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+    {children}
+  </span>
+)
+
+// Custom labels only: the built-in ones are the same for every agent on a
+// platform, and listed in the edit dialog.
+const Labels = ({ agent }: { agent: Agent }) => (
+  <div className="flex flex-wrap gap-1">
+    {agent.labels.length > 0 ? (
+      agent.labels.map((label) => <Label key={label}>{label}</Label>)
+    ) : (
+      <span className="text-muted-foreground">None</span>
+    )}
+  </div>
+)
+
 const dataColumns = [
   column.accessor('name', {
     header: 'Name',
@@ -34,6 +52,22 @@ const dataColumns = [
   column.accessor(formatPlatform, {
     id: 'platform',
     header: 'Platform',
+  }),
+  column.accessor('running', {
+    header: 'Running',
+    sortDescFirst: true,
+    cell: ({ row }) => (
+      <span className="tabular-nums">
+        {row.original.running}
+        <span className="text-muted-foreground"> / {row.original.slots}</span>
+      </span>
+    ),
+  }),
+  column.accessor((agent) => agent.labels.join(' '), {
+    id: 'labels',
+    header: 'Labels',
+    enableSorting: false,
+    cell: ({ row }) => <Labels agent={row.original} />,
   }),
   column.accessor((agent) => time(agent.lastSeenAt), {
     id: 'lastSeenAt',

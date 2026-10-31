@@ -12,7 +12,8 @@
     "format": "biome format --write",
     "format:check": "biome format",
     "lint": "biome lint",
-    "start": "bun src/index.ts"
+    "start": "bun src/index.ts",
+    "test": "bun test"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

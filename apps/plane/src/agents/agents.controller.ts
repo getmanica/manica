@@ -1,12 +1,23 @@
 import { Elysia, t } from 'elysia'
 import { assertPermission, authMacro } from '../auth'
 import { agentsService } from './agents.service'
+import { MAX_CUSTOM_LABELS, MAX_LABEL_LENGTH } from './labels'
 import { agentArches, agentOses } from './platform'
 
 // Requires a non-blank character: the name is stored trimmed.
 const name = t.String({ minLength: 1, maxLength: 64, pattern: '\\S' })
 const os = t.UnionEnum(agentOses)
 const arch = t.UnionEnum(agentArches)
+const slots = t.Integer({ minimum: 1, maximum: 64 })
+// See `isValidLabel`.
+const labels = t.Array(
+  t.String({
+    minLength: 1,
+    maxLength: MAX_LABEL_LENGTH,
+    pattern: '^[^\\s,]+$',
+  }),
+  { maxItems: MAX_CUSTOM_LABELS },
+)
 
 // Managing agents takes the same permission as managing the organization.
 const assertCanManage = (headers: Headers) =>
@@ -19,7 +30,16 @@ export const agentsController = new Elysia({ prefix: '/agents' })
   )
   .post(
     '/',
-    { organization: true, body: t.Object({ name, os, arch }) },
+    {
+      organization: true,
+      body: t.Object({
+        name,
+        os,
+        arch,
+        slots: t.Optional(slots),
+        labels: t.Optional(labels),
+      }),
+    },
     async ({ body, user, organizationId, request: { headers } }) => {
       await assertCanManage(headers)
       return agentsService.create({
@@ -35,7 +55,13 @@ export const agentsController = new Elysia({ prefix: '/agents' })
     {
       organization: true,
       body: t.Object(
-        { name: t.Optional(name), os: t.Optional(os), arch: t.Optional(arch) },
+        {
+          name: t.Optional(name),
+          os: t.Optional(os),
+          arch: t.Optional(arch),
+          slots: t.Optional(slots),
+          labels: t.Optional(labels),
+        },
         { minProperties: 1 },
       ),
     },

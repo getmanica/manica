@@ -19,6 +19,7 @@
     "format": "turbo format",
     "format:check": "turbo format:check",
     "lint": "turbo lint",
+    "test": "turbo test",
     "prepare": "lefthook install || true"
   },
   "devDependencies": {
