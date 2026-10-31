@@ -6,11 +6,16 @@ const required = (name: string) => {
 
 const production = Bun.env.NODE_ENV === 'production'
 
+const betterAuthUrl = required('BETTER_AUTH_URL')
+
 export const env = {
   production,
   port: Number(Bun.env.PORT ?? 3000),
   // Unset in development falls back to an embedded PGlite database.
   databaseUrl: production ? required('DATABASE_URL') : Bun.env.DATABASE_URL,
-  betterAuthUrl: required('BETTER_AUTH_URL'),
+  betterAuthUrl,
   betterAuthSecret: required('BETTER_AUTH_SECRET'),
+  // Base URL forges deliver webhooks to; must be reachable from the forge.
+  publicUrl: Bun.env.PUBLIC_URL || betterAuthUrl,
+  encryptionKey: required('ENCRYPTION_KEY'),
 }

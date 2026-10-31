@@ -1,7 +1,6 @@
 import type { Treaty } from '@elysia/eden'
-import { LogOutIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Page } from '@/components/layout'
 import {
   Card,
   CardDescription,
@@ -15,32 +14,40 @@ type User = Treaty.Data<typeof api.me.get>
 
 export const Home = () => {
   const [user, setUser] = useState<User | null>(null)
+  const { data: organization } = authClient.useActiveOrganization()
 
   useEffect(() => {
     void api.me.get().then(({ data }) => setUser(data))
   }, [])
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-6 p-8">
-      <header className="flex items-center justify-between">
-        <h1 className="font-semibold text-xl">Manica</h1>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void authClient.signOut()}
-        >
-          <LogOutIcon data-icon="inline-start" />
-          Sign out
-        </Button>
-      </header>
-      {user && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{user.name}</CardTitle>
-            <CardDescription>{user.email}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-    </main>
+    <Page
+      title="Overview"
+      description={user ? `Welcome back, ${user.name}.` : undefined}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardDescription>Account</CardDescription>
+              <CardTitle>{user.name}</CardTitle>
+              <CardDescription>{user.email}</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        {organization && (
+          <Card>
+            <CardHeader>
+              <CardDescription>Organization</CardDescription>
+              <CardTitle>{organization.name}</CardTitle>
+              <CardDescription>
+                {organization.members.length}{' '}
+                {organization.members.length === 1 ? 'member' : 'members'}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+      </div>
+    </Page>
   )
 }

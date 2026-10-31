@@ -5,6 +5,7 @@ export const relations = defineRelations(schema, (r) => ({
   user: {
     sessions: r.many.session(),
     accounts: r.many.account(),
+    members: r.many.member(),
   },
   session: {
     user: r.one.user({
@@ -18,6 +19,46 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.account.userId,
       to: r.user.id,
       optional: false,
+    }),
+  },
+  organization: {
+    members: r.many.member(),
+    invitations: r.many.invitation(),
+    forgeApps: r.many.forgeApp(),
+  },
+  member: {
+    organization: r.one.organization({
+      from: r.member.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    user: r.one.user({
+      from: r.member.userId,
+      to: r.user.id,
+      optional: false,
+    }),
+  },
+  invitation: {
+    organization: r.one.organization({
+      from: r.invitation.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    inviter: r.one.user({
+      from: r.invitation.inviterId,
+      to: r.user.id,
+      optional: false,
+    }),
+  },
+  forgeApp: {
+    organization: r.one.organization({
+      from: r.forgeApp.organizationId,
+      to: r.organization.id,
+      optional: false,
+    }),
+    createdBy: r.one.user({
+      from: r.forgeApp.createdById,
+      to: r.user.id,
     }),
   },
 }))

@@ -1,5 +1,11 @@
 import { Redirect, Route, Switch } from 'wouter'
+import { AppLayout } from '@/components/layout'
 import { authClient } from '@/lib/auth'
+import {
+  ForgeAppSetupError,
+  ForgeAppSetupSuccess,
+} from '@/pages/forge-app-setup'
+import { ForgeApps } from '@/pages/forge-apps'
 import { Home } from '@/pages/home'
 import { Login } from '@/pages/login'
 
@@ -8,13 +14,38 @@ export const App = () => {
 
   if (isPending) return null
 
+  if (!session) {
+    return (
+      <Switch>
+        <Route path="/login">
+          <Login />
+        </Route>
+        <Route>
+          <Redirect to="/login" />
+        </Route>
+      </Switch>
+    )
+  }
+
   return (
-    <Switch>
-      <Route path="/login">{session ? <Redirect to="/" /> : <Login />}</Route>
-      <Route path="/">{session ? <Home /> : <Redirect to="/login" />}</Route>
-      <Route>
-        <Redirect to="/" />
-      </Route>
-    </Switch>
+    <AppLayout>
+      <Switch>
+        <Route path="/forge-apps/setup/success">
+          <ForgeAppSetupSuccess />
+        </Route>
+        <Route path="/forge-apps/setup/error">
+          <ForgeAppSetupError />
+        </Route>
+        <Route path="/forge-apps">
+          <ForgeApps />
+        </Route>
+        <Route path="/">
+          <Home />
+        </Route>
+        <Route>
+          <Redirect to="/" />
+        </Route>
+      </Switch>
+    </AppLayout>
   )
 }
