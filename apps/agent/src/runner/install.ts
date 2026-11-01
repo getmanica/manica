@@ -27,8 +27,10 @@ export const createInstaller = (
 
     await mkdir(dir, { recursive: true })
     const scratch = await mkdtemp(join(dir, `.${build.version}-`))
+    const archive = join(scratch, 'runner.tar.gz')
+    // The last failed download of this version, kept to look into.
+    const failed = join(dir, `${build.version}.failed.tar.gz`)
     try {
-      const archive = join(scratch, 'runner.tar.gz')
       const response = await fetch(build.url).catch((error: unknown) => {
         throw new RunnerInstallError(build.version, String(error))
       })
@@ -51,21 +53,30 @@ export const createInstaller = (
       }
 
       const extracted = join(scratch, 'build')
-      await mkdir(extracted)
-      const tar = Bun.spawn(['tar', '-xzf', archive, '-C', extracted], {
-        stderr: 'pipe',
-      })
-      if ((await tar.exited) !== 0) {
-        throw new RunnerInstallError(
-          build.version,
-          `extracting failed: ${await tar.stderr.text()}`,
-        )
-      }
+      // Bun.Archive rejects a Bun.file() as input (ReadError), so it gets the
+      // bytes. It keeps modes and symlinks and confines entries to `extracted`.
+      await new Bun.Archive(await Bun.file(archive).bytes())
+        .extract(extracted)
+        .catch((error: unknown) => {
+          throw new RunnerInstallError(
+            build.version,
+            `extracting failed: ${String(error)}`,
+          )
+        })
       await Bun.write(join(extracted, COMPLETE_MARKER), '')
       // Clears what an interrupted install may have left.
       await rm(target, { recursive: true, force: true })
       await rename(extracted, target)
+      await rm(failed, { force: true })
       return target
+    } catch (error) {
+      const reason =
+        error instanceof RunnerInstallError ? error.reason : String(error)
+      if (!(await Bun.file(archive).exists())) {
+        throw new RunnerInstallError(build.version, reason)
+      }
+      await rename(archive, failed)
+      throw new RunnerInstallError(build.version, reason, failed)
     } finally {
       await rm(scratch, { recursive: true, force: true })
     }

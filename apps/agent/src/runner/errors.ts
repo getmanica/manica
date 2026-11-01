@@ -3,8 +3,16 @@
 
 export class RunnerInstallError extends Error {
   override readonly name = 'RunnerInstallError'
-  constructor(version: string, reason: string) {
-    super(`Installing runner ${version} failed: ${reason}`)
+  constructor(
+    readonly version: string,
+    readonly reason: string,
+    // Where the downloaded archive was kept, if it got that far.
+    readonly archive?: string,
+  ) {
+    super(
+      `Installing runner ${version} failed: ${reason}` +
+        (archive ? ` (archive kept at ${archive})` : ''),
+    )
   }
 }
 
