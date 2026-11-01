@@ -19,6 +19,37 @@ export const outcomeTone = ({ status, conclusion }: Job): OutcomeTone => {
   if (status === 'queued') return 'pending'
   if (status === 'in_progress') return 'active'
   if (conclusion === 'success') return 'good'
-  if (conclusion === 'failure' || conclusion === 'timed_out') return 'bad'
+  if (
+    conclusion === 'failure' ||
+    conclusion === 'timed_out' ||
+    conclusion === 'cancelled'
+  )
+    return 'bad'
   return 'neutral'
+}
+
+// The outcomes the status filter always offers; any other one shows up once a
+// listed job has it.
+export const commonOutcomes = [
+  'Queued',
+  'Running',
+  'Success',
+  'Failure',
+  'Cancelled',
+  'Skipped',
+  'Timed out',
+]
+
+// Whether a job matches the filter box: its name, repository, agent, labels or
+// outcome contain the text, ignoring case.
+export const jobMatches = (job: Job, text: string) => {
+  const needle = text.trim().toLowerCase()
+  if (!needle) return true
+  return [
+    job.name,
+    job.repository,
+    job.agentName ?? '',
+    jobOutcome(job),
+    ...job.labels,
+  ].some((value) => value.toLowerCase().includes(needle))
 }

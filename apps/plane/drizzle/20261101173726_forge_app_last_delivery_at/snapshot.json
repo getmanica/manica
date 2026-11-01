@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "6c2edaec-d84b-4826-94ce-a8ac12bb534d",
+  "prevIds": [
+    "93027dd5-f494-46d2-898d-202e7f05de19"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "forge_app",
+        "last_delivery_at"
+      ],
+      "writes": [
+        "s|col|public.forge_app.last_delivery_at",
+        "n|col|public.forge_app.last_delivery_at",
+        "e|col|public.forge_app.last_delivery_at"
+      ],
+      "reads": [
+        "n|tbl|public.forge_app",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forge_app",
+        "name": "last_delivery_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

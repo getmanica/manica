@@ -5,6 +5,7 @@ import { authMacro } from './auth/session'
 import { forgeAppsController } from './forge-apps/forge-apps.controller'
 import { forgeWebhooksController } from './forge-apps/webhooks.controller'
 import { jobsController } from './jobs/jobs.controller'
+import { overviewController } from './overview/overview.controller'
 import { agentController } from './runners/agent.controller'
 
 // The API has three audiences, each authenticated its own way:
@@ -19,6 +20,7 @@ const api = new Elysia({ prefix: '/api' })
   .use(agentsController)
   .use(forgeAppsController)
   .use(jobsController)
+  .use(overviewController)
   // Agents
   .use(agentController)
   // Forges

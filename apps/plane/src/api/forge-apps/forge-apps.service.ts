@@ -1,4 +1,4 @@
-import { and, eq, gt } from 'drizzle-orm'
+import { and, desc, eq, gt } from 'drizzle-orm'
 import { forges } from '../forges/registry'
 import { encrypt } from '../platform/crypto'
 import { db } from '../platform/db'
@@ -18,6 +18,7 @@ const publicColumns = {
   url: forgeApp.url,
   installUrl: forgeApp.installUrl,
   owner: forgeApp.owner,
+  lastDeliveryAt: forgeApp.lastDeliveryAt,
   createdAt: forgeApp.createdAt,
 }
 
@@ -35,7 +36,8 @@ export const forgeAppsService = {
     db
       .select(publicColumns)
       .from(forgeApp)
-      .where(eq(forgeApp.organizationId, organizationId)),
+      .where(eq(forgeApp.organizationId, organizationId))
+      .orderBy(desc(forgeApp.createdAt)),
 
   async startSetup(input: {
     forge: ForgeKind

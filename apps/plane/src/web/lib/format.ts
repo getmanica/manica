@@ -27,3 +27,8 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 
 export const formatDate = (date: Date | string) =>
   dateFormat.format(new Date(date))
+
+const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
+
+export const formatTime = (date: Date | string) =>
+  timeFormat.format(new Date(date))

@@ -27,6 +27,12 @@ export const forgeWebhooksService = {
       secrets,
     })
 
+    // Past the signature check: the forge is reaching the app.
+    await db
+      .update(forgeApp)
+      .set({ lastDeliveryAt: new Date() })
+      .where(eq(forgeApp.id, app.id))
+
     // In order, so a delivery carrying several events for one job applies
     // them as sent.
     for (const event of events) await jobsService.record(app, event)

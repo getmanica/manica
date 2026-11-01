@@ -83,11 +83,23 @@ export const AppLayout = ({ children }: { children: ReactNode }) => (
 
 export const Page = ({
   title,
+  heading = title,
+  eyebrow,
   description,
+  actions,
+  wide = false,
   children,
 }: {
+  // Names the page in the header bar, and heads it unless `heading` does.
   title: string
+  heading?: ReactNode
+  // A small line above the heading.
+  eyebrow?: string
   description?: string
+  // Page-wide controls, beside the title.
+  actions?: ReactNode
+  // Room for wide tables.
+  wide?: boolean
   children: ReactNode
 }) => (
   <>
@@ -99,12 +111,22 @@ export const Page = ({
       />
       <span className="font-medium text-sm">{title}</span>
     </header>
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6 md:p-10">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-muted-foreground text-sm">{description}</p>
-        )}
+    <div
+      className={`mx-auto flex w-full flex-col gap-8 p-6 md:p-10 ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          {eyebrow && (
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="font-semibold text-2xl tracking-tight">{heading}</h1>
+          {description && (
+            <p className="text-muted-foreground text-sm">{description}</p>
+          )}
+        </div>
+        {actions}
       </div>
       {children}
     </div>

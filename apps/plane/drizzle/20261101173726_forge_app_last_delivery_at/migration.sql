@@ -1,0 +1,1 @@
+ALTER TABLE "forge_app" ADD COLUMN "last_delivery_at" timestamp;

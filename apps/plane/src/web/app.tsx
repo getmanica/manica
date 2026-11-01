@@ -7,8 +7,8 @@ import {
   ForgeAppSetupSuccess,
 } from '@/features/forge-apps/setup'
 import { Jobs } from '@/features/jobs/page'
+import { Overview } from '@/features/overview/page'
 import { authClient } from '@/lib/auth'
-import { Home } from '@/pages/home'
 import { Login } from '@/pages/login'
 
 export const App = () => {
@@ -48,7 +48,7 @@ export const App = () => {
           <ForgeApps />
         </Route>
         <Route path="/">
-          <Home />
+          <Overview />
         </Route>
         <Route>
           <Redirect to="/" />

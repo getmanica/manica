@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import {
   agentLabelSet,
   matchesLabels,
@@ -64,13 +64,20 @@ const merge = (event: JobEvent) => ({
 })
 
 export const jobsService = {
-  list: (organizationId: string) =>
+  // The organization's latest jobs, optionally only those queued since
+  // `since`.
+  list: (organizationId: string, since?: Date) =>
     db
       .select(publicColumns)
       .from(job)
       .leftJoin(runner, eq(runner.jobId, job.id))
       .leftJoin(agent, eq(runner.agentId, agent.id))
-      .where(eq(job.organizationId, organizationId))
+      .where(
+        and(
+          eq(job.organizationId, organizationId),
+          since ? gte(job.queuedAt, since) : undefined,
+        ),
+      )
       .orderBy(desc(job.queuedAt))
       .limit(MAX_LISTED),
 

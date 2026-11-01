@@ -30,7 +30,8 @@ export const forgeAppSetup = pgTable(
 // An app registered on a forge (e.g. a GitHub App), owned by an organization.
 // `secrets` holds the forge-specific credentials, encrypted at rest.
 // `deliveriesCheckedAt` is when plane last asked the forge to resend the
-// webhook deliveries it missed (see `jobs/reconciler`).
+// webhook deliveries it missed (see `jobs/reconciler`). `lastDeliveryAt` is
+// when a genuine (signed) webhook delivery last arrived.
 export const forgeApp = pgTable(
   'forge_app',
   {
@@ -44,6 +45,7 @@ export const forgeApp = pgTable(
     owner: text('owner').notNull(),
     secrets: text('secrets').notNull(),
     deliveriesCheckedAt: timestamp('deliveries_checked_at'),
+    lastDeliveryAt: timestamp('last_delivery_at'),
     organizationId: text('organization_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),

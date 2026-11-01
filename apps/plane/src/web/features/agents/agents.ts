@@ -24,3 +24,16 @@ export const archLabels: Record<Agent['arch'], string> = {
 // e.g. "macOS ARM64".
 export const formatPlatform = ({ os, arch }: Pick<Agent, 'os' | 'arch'>) =>
   `${osLabels[os]} ${archLabels[arch]}`
+
+// Whether an agent matches the filter box: its name, platform, labels or
+// version contain the text, ignoring case.
+export const agentMatches = (agent: Agent, text: string) => {
+  const needle = text.trim().toLowerCase()
+  if (!needle) return true
+  return [
+    agent.name,
+    formatPlatform(agent),
+    agent.version ?? '',
+    ...agent.labels,
+  ].some((value) => value.toLowerCase().includes(needle))
+}

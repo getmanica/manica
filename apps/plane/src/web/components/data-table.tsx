@@ -1,5 +1,7 @@
 import {
   type ColumnDef,
+  type ColumnVisibilityState,
+  columnVisibilityFeature,
   createColumnHelper,
   createSortedRowModel,
   type RowData,
@@ -10,7 +12,7 @@ import {
   tableFeatures,
   useTable,
 } from '@tanstack/react-table'
-import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import {
   Table,
@@ -21,9 +23,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-// Shared by every data table: client-side sorting by clicking a header.
+// Shared by every data table: client-side sorting by clicking a header, and
+// columns the page can hide.
 const features = tableFeatures({
   rowSortingFeature,
+  columnVisibilityFeature,
   sortedRowModel: createSortedRowModel(),
   sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
 })
@@ -41,6 +45,8 @@ export const DataTable = <Row extends RowData>({
   getRowId,
   initialSorting,
   empty,
+  columnVisibility,
+  toolbar,
 }: {
   // Keep stable (module scope or memoized): new columns rebuild the table.
   // biome-ignore lint/suspicious/noExplicitAny: columns mix value types.
@@ -50,6 +56,10 @@ export const DataTable = <Row extends RowData>({
   initialSorting?: SortingState
   // Shown in place of the rows when there are none.
   empty: ReactNode
+  // Columns by id, hidden when false.
+  columnVisibility?: ColumnVisibilityState
+  // Controls shown above the table, e.g. filters.
+  toolbar?: ReactNode
 }) => {
   const table = useTable({
     features,
@@ -57,13 +67,14 @@ export const DataTable = <Row extends RowData>({
     data,
     getRowId,
     initialState: { sorting: initialSorting ?? [] },
+    state: columnVisibility ? { columnVisibility } : undefined,
   })
   const rows = table.getRowModel().rows
 
-  return (
+  const grid = (
     <div className="overflow-hidden rounded-xl border">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
               {group.headers.map((header) => {
@@ -74,18 +85,22 @@ export const DataTable = <Row extends RowData>({
                 return (
                   <TableHead
                     key={header.id}
+                    className="h-11 px-4"
                     aria-sort={sorted ? ariaSort[sorted] : undefined}
                   >
                     {header.column.getCanSort() ? (
                       <button
                         type="button"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="-mx-1 inline-flex items-center gap-1 rounded px-1 hover:text-foreground"
+                        className="group/sort -mx-1 inline-flex items-center gap-1.5 rounded px-1 hover:text-foreground"
                       >
                         {label}
-                        {sorted === 'asc' && <ArrowUpIcon className="size-3" />}
-                        {sorted === 'desc' && (
-                          <ArrowDownIcon className="size-3" />
+                        {sorted === 'asc' ? (
+                          <ArrowUpIcon className="size-3.5" />
+                        ) : sorted === 'desc' ? (
+                          <ArrowDownIcon className="size-3.5" />
+                        ) : (
+                          <ArrowUpDownIcon className="size-3.5 text-muted-foreground group-hover/sort:text-foreground" />
                         )}
                       </button>
                     ) : (
@@ -100,13 +115,15 @@ export const DataTable = <Row extends RowData>({
         <TableBody>
           {rows.length === 0 ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columns.length}>{empty}</TableCell>
+              <TableCell colSpan={table.getVisibleLeafColumns().length}>
+                {empty}
+              </TableCell>
             </TableRow>
           ) : (
             rows.map((row) => (
               <TableRow key={row.id}>
-                {row.getAllCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="px-4 py-3">
                     <table.FlexRender cell={cell} />
                   </TableCell>
                 ))}
@@ -115,6 +132,14 @@ export const DataTable = <Row extends RowData>({
           )}
         </TableBody>
       </Table>
+    </div>
+  )
+
+  if (!toolbar) return grid
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3">
+      <div className="flex items-center justify-end gap-2">{toolbar}</div>
+      {grid}
     </div>
   )
 }

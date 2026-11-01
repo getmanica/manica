@@ -126,3 +126,17 @@ test('list is scoped to the organization', async () => {
   expect(await jobsService.list(app.organizationId)).toHaveLength(1)
   expect(await jobsService.list(other.organizationId)).toHaveLength(0)
 })
+
+test('list only includes jobs queued since the given time', async () => {
+  await jobsService.record(app, event())
+  await jobsService.record(
+    app,
+    event({ externalId: '2', queuedAt: new Date('2026-10-31T12:00:00Z') }),
+  )
+  const since = new Date('2026-10-31T11:00:00Z')
+  const listed = await jobsService.list(app.organizationId, since)
+  expect(listed.map((job) => job.queuedAt)).toEqual([
+    new Date('2026-10-31T12:00:00Z'),
+  ])
+  expect(await jobsService.list(app.organizationId)).toHaveLength(2)
+})

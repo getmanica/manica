@@ -1,6 +1,6 @@
 import {
   KeyRoundIcon,
-  MoreHorizontalIcon,
+  MoreVerticalIcon,
   PencilIcon,
   Trash2Icon,
 } from 'lucide-react'
@@ -33,7 +33,7 @@ export const AgentActions = ({
         />
       }
     >
-      <MoreHorizontalIcon />
+      <MoreVerticalIcon />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
       <DropdownMenuItem onClick={() => onAction('edit', agent)}>
