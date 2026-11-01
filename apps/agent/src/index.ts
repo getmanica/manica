@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import pkg from '../package.json'
 import { parseCli, usage } from './cli'
 import { defaultConfigDir, loadConfig } from './config'
 import { AgentError, UsageError } from './errors'
@@ -8,11 +7,12 @@ import { reportExit, runLive } from './live'
 import { createPlane } from './plane'
 import { createInstaller } from './runner/install'
 import { createSupervisor } from './runner/supervisor'
+import { version } from './version'
 
 const main = async () => {
   const cli = parseCli(Bun.argv.slice(2))
   if (cli.help) return console.log(usage)
-  if (cli.version) return console.log(pkg.version)
+  if (cli.version) return console.log(version)
 
   const config = await loadConfig(cli.configDir ?? defaultConfigDir())
 

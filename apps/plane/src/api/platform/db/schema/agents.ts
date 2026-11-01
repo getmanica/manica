@@ -17,7 +17,7 @@ export const agentArch = pgEnum('agent_arch', agentArches)
 // A machine running the Manica agent, owned by an organization. Only a
 // SHA-256 hash of the agent's token is stored: the token itself is shown
 // once, when the agent is created. `lastSeenAt` is set by the agent once it
-// connects. `slots` is how many jobs it runs at once; `labels` are the
+// connects, and `version` to the agent version it last reported. `slots` is how many jobs it runs at once; `labels` are the
 // runs-on labels it answers to on top of the built-in ones (see
 // `shared/labels`), stored lowercased.
 export const agent = pgTable(
@@ -31,6 +31,7 @@ export const agent = pgTable(
     slots: integer('slots').default(1).notNull(),
     labels: text('labels').array().default([]).notNull(),
     lastSeenAt: timestamp('last_seen_at'),
+    version: text('version'),
     organizationId: text('organization_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),

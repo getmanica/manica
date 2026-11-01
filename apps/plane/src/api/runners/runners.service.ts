@@ -38,6 +38,8 @@ export const runnerName = (id: string) => `manica-${id}`
 const leaseFrom = (now: Date) => new Date(now.getTime() + LEASE_MS)
 
 export type PollInput = {
+  // The agent's version, if it reports it.
+  version?: string
   // Whether the agent takes new jobs: false while it shuts down.
   accepting: boolean
   // The runners the agent holds: starting, running, or exited but not yet
@@ -79,7 +81,7 @@ export const createRunnersService = (
       if (!locked) throw new AgentNotFoundError()
       await tx
         .update(agent)
-        .set({ lastSeenAt: now })
+        .set({ lastSeenAt: now, version: input.version ?? null })
         .where(eq(agent.id, agentId))
 
       const held = new Set(input.runners)

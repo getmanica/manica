@@ -2,6 +2,7 @@ import type { Config } from './config'
 import { TokenRejectedError } from './errors'
 import type { Plane } from './plane'
 import type { Supervisor } from './runner/supervisor'
+import { version } from './version'
 
 const describe = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
@@ -88,7 +89,11 @@ export const runLive = async (
 
     try {
       const polled = await call(() =>
-        plane.agent.poll.post({ accepting, runners: supervisor.held() }),
+        plane.agent.poll.post({
+          version,
+          accepting,
+          runners: supervisor.held(),
+        }),
       )
       if (!connected) console.log('connected')
       connected = true

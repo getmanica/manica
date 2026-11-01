@@ -90,9 +90,10 @@ const storedRunner = async (id: string) => {
 
 const poll = (
   runners: string[] = [],
-  input: { accepting?: boolean; agentId?: string } = {},
+  input: { accepting?: boolean; agentId?: string; version?: string } = {},
 ) =>
   service().poll(input.agentId ?? mac.id, {
+    version: input.version,
     accepting: input.accepting ?? true,
     runners,
   })
@@ -160,6 +161,21 @@ describe('poll', () => {
     await queue()
     const results = await Promise.all([poll(), poll(), poll()])
     expect(results.flatMap(({ start }) => start)).toHaveLength(1)
+  })
+
+  test('records the version the agent reports', async () => {
+    const version = async () => {
+      const [found] = await db
+        .select({ version: agent.version })
+        .from(agent)
+        .where(eq(agent.id, mac.id))
+      return found?.version
+    }
+    await poll([], { version: '1.2.3' })
+    expect(await version()).toBe('1.2.3')
+    // An agent that doesn't report it may be any version.
+    await poll()
+    expect(await version()).toBeNull()
   })
 
   test('says which runner build to run', async () => {

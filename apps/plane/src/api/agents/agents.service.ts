@@ -31,6 +31,7 @@ const publicColumns = {
   slots: agent.slots,
   labels: agent.labels,
   lastSeenAt: agent.lastSeenAt,
+  version: agent.version,
   createdAt: agent.createdAt,
   updatedAt: agent.updatedAt,
 }

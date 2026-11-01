@@ -62,6 +62,17 @@ const dataColumns = [
     enableSorting: false,
     cell: ({ row }) => <Labels agent={row.original} />,
   }),
+  column.accessor('version', {
+    header: 'Version',
+    cell: ({ getValue }) => {
+      const version = getValue()
+      return version ? (
+        <span className="font-mono text-xs">{version}</span>
+      ) : (
+        <span className="text-muted-foreground">Unknown</span>
+      )
+    },
+  }),
   column.accessor((agent) => time(agent.lastSeenAt), {
     id: 'lastSeenAt',
     header: 'Last seen',

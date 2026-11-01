@@ -15,6 +15,8 @@ export const agentController = new Elysia({ prefix: '/agent' })
     {
       agent: true,
       body: t.Object({
+        // Optional for agents that predate reporting it.
+        version: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
         accepting: t.Boolean(),
         runners: t.Array(t.String(), { maxItems: 256 }),
       }),

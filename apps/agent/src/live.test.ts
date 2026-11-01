@@ -4,6 +4,7 @@ import { TokenRejectedError } from './errors'
 import { runLive } from './live'
 import type { Plane } from './plane'
 import type { Supervisor } from './runner/supervisor'
+import { version } from './version'
 
 const config = {
   plane: { url: new URL('http://plane.test'), token: 'mna_x', pollInterval: 1 },
@@ -12,7 +13,7 @@ const config = {
 
 const build = { version: '1.0.0', url: 'unused', sha256: 'unused' }
 
-type Poll = { accepting: boolean; runners: string[] }
+type Poll = { version: string; accepting: boolean; runners: string[] }
 type PollReply = {
   start: { id: string; name: string; config: string }[]
   cancel: string[]
@@ -97,7 +98,7 @@ test('starts and stops runners as the plane says, and lists them', async () => {
 
   expect(started).toEqual(['a'])
   expect(stopped).toEqual(['a'])
-  expect(polls[1]).toEqual({ accepting: true, runners: ['a'] })
+  expect(polls[1]).toEqual({ version, accepting: true, runners: ['a'] })
 })
 
 test('drains: takes no new jobs, and waits for running ones', async () => {
@@ -110,7 +111,7 @@ test('drains: takes no new jobs, and waits for running ones', async () => {
   while (polls.length < 1) await Bun.sleep(5)
   drain.abort()
   await Bun.sleep(20)
-  expect(polls.at(-1)).toEqual({ accepting: false, runners: ['a'] })
+  expect(polls.at(-1)).toEqual({ version, accepting: false, runners: ['a'] })
 
   // A second signal stops the running one.
   stop.abort()
