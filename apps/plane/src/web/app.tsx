@@ -1,6 +1,8 @@
 import { Redirect, Route, Switch } from 'wouter'
 import { AppLayout } from '@/components/layout'
 import { Agents } from '@/features/agents/page'
+import { SignIn } from '@/features/auth/sign-in'
+import { SignUp } from '@/features/auth/sign-up'
 import { ForgeApps } from '@/features/forge-apps/page'
 import {
   ForgeAppSetupError,
@@ -9,7 +11,6 @@ import {
 import { Jobs } from '@/features/jobs/page'
 import { Overview } from '@/features/overview/page'
 import { authClient } from '@/lib/auth'
-import { Login } from '@/pages/login'
 
 export const App = () => {
   const { data: session, isPending } = authClient.useSession()
@@ -20,7 +21,10 @@ export const App = () => {
     return (
       <Switch>
         <Route path="/login">
-          <Login />
+          <SignIn />
+        </Route>
+        <Route path="/signup">
+          <SignUp />
         </Route>
         <Route>
           <Redirect to="/login" />

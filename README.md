@@ -81,6 +81,7 @@ docker run -p 3000:3000 \
 | `ENCRYPTION_KEY`     | yes      | Encrypts GitHub App credentials at rest (`openssl rand -base64 32`)                          |
 | `PUBLIC_URL`         | no       | Base URL GitHub delivers webhooks to, defaults to `BETTER_AUTH_URL`. Must be publicly reachable |
 | `PORT`               | no       | Defaults to `3000`                                                                           |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | no | Turn on signing in with GitHub, through a GitHub OAuth app whose callback URL is `$BETTER_AUTH_URL/api/auth/callback/github` |
 
 Keep `ENCRYPTION_KEY` safe: losing it makes the stored GitHub App credentials unreadable.
 

@@ -8,6 +8,7 @@ import {
   UsersIcon,
 } from 'lucide-react'
 import { useState } from 'react'
+import { GitHubIcon } from '@/components/brand-icon'
 import { useAppForm } from '@/components/form/app-form'
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
 import { FieldGroup } from '@/components/ui/field'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { followSetupRedirect } from '@/features/forge-apps/forge-apps'
-import { GitHubIcon } from '@/features/forge-apps/forge-icon'
 import { api, errorDetail } from '@/lib/api'
 
 // Where GitHub creates the app: the user's own account, or an organization

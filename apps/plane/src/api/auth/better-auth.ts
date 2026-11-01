@@ -13,6 +13,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: env.githubSignIn ? { github: env.githubSignIn } : {},
   plugins: [organization()],
   databaseHooks: {
     session: {
@@ -31,3 +32,6 @@ export const auth = betterAuth({
     },
   },
 })
+
+// How users can sign in, for the sign-in page to offer.
+export const signInMethods = () => ({ github: !!env.githubSignIn })

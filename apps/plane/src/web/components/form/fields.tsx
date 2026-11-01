@@ -3,7 +3,8 @@ import {
   type FieldWithValue,
   getFormHookHelpers,
 } from '@tanstack/react-form'
-import type { ComponentProps } from 'react'
+import { EyeIcon, EyeOffIcon } from 'lucide-react'
+import { type ComponentProps, useState } from 'react'
 import {
   FieldDescription,
   FieldError,
@@ -80,6 +81,46 @@ const TextInput = fieldComponent.strict(
   'field',
 )
 
+// A password, with a button to show it while typing. It stays a real
+// `type="password"` input with its `autoComplete`, so password managers
+// recognize and fill it.
+const PasswordInput = fieldComponent.strict(
+  ({
+    field,
+    className,
+    ...props
+  }: Omit<InputProps, 'type'> & { field: FieldWithValue<string> }) => {
+    const [shown, setShown] = useState(false)
+    const Icon = shown ? EyeOffIcon : EyeIcon
+    return (
+      <div className="relative">
+        <Input
+          {...props}
+          type={shown ? 'text' : 'password'}
+          id={fieldId(field)}
+          name={field.name}
+          value={field.value}
+          onChange={(event) => field.handleChange(event.target.value)}
+          onBlur={field.handleBlur}
+          aria-invalid={field.meta.isInvalid}
+          className={`pr-9 ${className ?? ''}`}
+        />
+        <button
+          type="button"
+          onClick={() => setShown(!shown)}
+          aria-label={shown ? 'Hide password' : 'Show password'}
+          aria-pressed={shown}
+          aria-controls={fieldId(field)}
+          className="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-lg text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <Icon className="size-4" />
+        </button>
+      </div>
+    )
+  },
+  'field',
+)
+
 const NumberInput = fieldComponent.strict(
   ({ field, ...props }: InputProps & { field: FieldWithValue<number> }) => (
     <Input
@@ -140,6 +181,7 @@ export const fieldComponents = {
   Description,
   Error: Errors,
   TextInput,
+  PasswordInput,
   NumberInput,
   Select,
 }

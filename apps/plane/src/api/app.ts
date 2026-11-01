@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import { agentsController } from './agents/agents.controller'
-import { auth } from './auth/better-auth'
+import { auth, signInMethods } from './auth/better-auth'
 import { authMacro } from './auth/session'
 import { forgeAppsController } from './forge-apps/forge-apps.controller'
 import { forgeWebhooksController } from './forge-apps/webhooks.controller'
@@ -15,6 +15,7 @@ import { agentController } from './runners/agent.controller'
 const api = new Elysia({ prefix: '/api' })
   .use(authMacro)
   .get('/health', () => ({ status: 'ok' }))
+  .get('/sign-in-methods', signInMethods)
   // Console
   .get('/me', { auth: true }, ({ user }) => user)
   .use(agentsController)
