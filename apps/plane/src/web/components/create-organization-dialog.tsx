@@ -1,6 +1,4 @@
-import { type FormEvent, useState } from 'react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { required, useAppForm } from '@/components/form/app-form'
 import {
   Dialog,
   DialogContent,
@@ -9,9 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import { FieldGroup } from '@/components/ui/field'
 import { authClient } from '@/lib/auth'
 
 // Slugs are unique but never shown, so a random suffix avoids collisions.
@@ -32,68 +28,61 @@ export const CreateOrganizationDialog = ({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) => {
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const name = String(new FormData(event.currentTarget).get('name')).trim()
-
-    setPending(true)
-    setError(null)
-    // Creating an organization also makes it the active one.
-    const { error } = await authClient.organization.create({
-      name,
-      slug: slugFor(name),
-    })
-    setPending(false)
-    if (error) {
-      setError(error.message ?? 'Something went wrong')
-      return
-    }
-    onOpenChange(false)
-  }
+  const form = useAppForm({
+    defaultValues: { name: '' },
+    onSubmit: async ({ value, createValidationError }) => {
+      const name = value.name.trim()
+      // Creating an organization also makes it the active one.
+      const { error } = await authClient.organization.create({
+        name,
+        slug: slugFor(name),
+      })
+      if (error) {
+        return createValidationError(error.message ?? 'Something went wrong')
+      }
+      onOpenChange(false)
+    },
+  })
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(open) => {
-        setError(null)
-        onOpenChange(open)
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(open) => {
+        // Reset once the close animation is done, not while it plays.
+        if (!open) form.reset()
       }}
     >
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={(event) => void onSubmit(event)}>
-          <FieldGroup>
-            <DialogHeader>
-              <DialogTitle>Create organization</DialogTitle>
-              <DialogDescription>
-                Organizations own forge apps and runners, and can be shared with
-                others.
-              </DialogDescription>
-            </DialogHeader>
-            <Field>
-              <FieldLabel htmlFor="organization-name">Name</FieldLabel>
-              <Input
-                id="organization-name"
+        <form.AppForm>
+          <form.Form>
+            <FieldGroup>
+              <DialogHeader>
+                <DialogTitle>Create organization</DialogTitle>
+                <DialogDescription>
+                  Organizations own forge apps and runners, and can be shared
+                  with others.
+                </DialogDescription>
+              </DialogHeader>
+              <form.Field
                 name="name"
-                autoComplete="organization"
-                required
-              />
-            </Field>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <DialogFooter>
-              <Button type="submit" disabled={pending}>
-                {pending && <Spinner data-icon="inline-start" />}
-                Create
-              </Button>
-            </DialogFooter>
-          </FieldGroup>
-        </form>
+                validators={[required('Give the organization a name')]}
+              >
+                {(field) => (
+                  <field.Field>
+                    <field.Label>Name</field.Label>
+                    <field.TextInput autoComplete="organization" />
+                    <field.Error />
+                  </field.Field>
+                )}
+              </form.Field>
+              <form.Errors />
+              <DialogFooter>
+                <form.SubmitButton>Create</form.SubmitButton>
+              </DialogFooter>
+            </FieldGroup>
+          </form.Form>
+        </form.AppForm>
       </DialogContent>
     </Dialog>
   )

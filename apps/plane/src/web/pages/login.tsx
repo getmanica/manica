@@ -1,5 +1,5 @@
-import { type FormEvent, useState } from 'react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useState } from 'react'
+import { required, useAppForm } from '@/components/form/app-form'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -8,35 +8,27 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import { Field, FieldGroup } from '@/components/ui/field'
 import { authClient } from '@/lib/auth'
 
 export const Login = () => {
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const email = String(form.get('email'))
-    const password = String(form.get('password'))
-
-    setPending(true)
-    setError(null)
-    const { error } =
-      mode === 'sign-in'
-        ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({
-            email,
-            password,
-            name: String(form.get('name')),
-          })
-    setPending(false)
-    if (error) setError(error.message ?? 'Something went wrong')
-  }
+  const form = useAppForm({
+    defaultValues: { name: '', email: '', password: '' },
+    onSubmit: async ({
+      value: { name, email, password },
+      createValidationError,
+    }) => {
+      const { error } =
+        mode === 'sign-in'
+          ? await authClient.signIn.email({ email, password })
+          : await authClient.signUp.email({ email, password, name })
+      if (error) {
+        return createValidationError(error.message ?? 'Something went wrong')
+      }
+    },
+  })
 
   return (
     <main className="flex min-h-screen items-center justify-center p-8">
@@ -52,60 +44,76 @@ export const Login = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={(event) => void onSubmit(event)}>
-            <FieldGroup>
-              {mode === 'sign-up' && (
-                <Field>
-                  <FieldLabel htmlFor="name">Name</FieldLabel>
-                  <Input id="name" name="name" autoComplete="name" required />
-                </Field>
-              )}
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
+          <form.AppForm>
+            <form.Form>
+              <FieldGroup>
+                {mode === 'sign-up' && (
+                  <form.Field
+                    name="name"
+                    validators={[required('Enter your name')]}
+                  >
+                    {(field) => (
+                      <field.Field>
+                        <field.Label>Name</field.Label>
+                        <field.TextInput autoComplete="name" />
+                        <field.Error />
+                      </field.Field>
+                    )}
+                  </form.Field>
+                )}
+                <form.Field
                   name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete={
-                    mode === 'sign-in' ? 'current-password' : 'new-password'
-                  }
-                  required
-                />
-              </Field>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <Field>
-                <Button type="submit" disabled={pending}>
-                  {pending && <Spinner data-icon="inline-start" />}
-                  {mode === 'sign-in' ? 'Sign in' : 'Sign up'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={() =>
-                    setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
-                  }
+                  validators={[required('Enter your email')]}
                 >
-                  {mode === 'sign-in'
-                    ? "Don't have an account? Sign up"
-                    : 'Already have an account? Sign in'}
-                </Button>
-              </Field>
-            </FieldGroup>
-          </form>
+                  {(field) => (
+                    <field.Field>
+                      <field.Label>Email</field.Label>
+                      <field.TextInput type="email" autoComplete="email" />
+                      <field.Error />
+                    </field.Field>
+                  )}
+                </form.Field>
+                <form.Field
+                  name="password"
+                  validators={[required('Enter your password')]}
+                >
+                  {(field) => (
+                    <field.Field>
+                      <field.Label>Password</field.Label>
+                      <field.TextInput
+                        type="password"
+                        autoComplete={
+                          mode === 'sign-in'
+                            ? 'current-password'
+                            : 'new-password'
+                        }
+                      />
+                      <field.Error />
+                    </field.Field>
+                  )}
+                </form.Field>
+                <form.Errors />
+                <Field>
+                  <form.SubmitButton>
+                    {mode === 'sign-in' ? 'Sign in' : 'Sign up'}
+                  </form.SubmitButton>
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => {
+                      // Errors from one mode don't apply to the other.
+                      form.reset(form.state.values)
+                      setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
+                    }}
+                  >
+                    {mode === 'sign-in'
+                      ? "Don't have an account? Sign up"
+                      : 'Already have an account? Sign in'}
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form.Form>
+          </form.AppForm>
         </CardContent>
       </Card>
     </main>

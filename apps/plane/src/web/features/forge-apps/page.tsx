@@ -1,8 +1,8 @@
 import { ExternalLinkIcon, PlugIcon } from 'lucide-react'
-import { type FormEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useAppForm } from '@/components/form/app-form'
 import { Page } from '@/components/layout'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardAction,
@@ -11,46 +11,29 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import { Field, FieldGroup } from '@/components/ui/field'
 import {
   type ForgeApp,
   followSetupRedirect,
   forgeLabels,
 } from '@/features/forge-apps/forge-apps'
-import { api } from '@/lib/api'
+import { api, errorDetail } from '@/lib/api'
 import { authClient } from '@/lib/auth'
 
 const ConnectGitHub = () => {
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const owner = String(new FormData(event.currentTarget).get('owner')).trim()
-
-    setPending(true)
-    setError(null)
-    const { data, error } = await api['forge-apps'].setup.post({
-      forge: 'github',
-      owner: owner || undefined,
-    })
-    if (error) {
-      setPending(false)
-      setError(
-        (error.value as { detail?: string }).detail ?? 'Something went wrong',
-      )
-      return
-    }
-    // Stays pending: the browser is leaving for GitHub.
-    followSetupRedirect(data.redirect)
-  }
+  const form = useAppForm({
+    defaultValues: { owner: '' },
+    onSubmit: async ({ value, createValidationError }) => {
+      const { data, error } = await api['forge-apps'].setup.post({
+        forge: 'github',
+        owner: value.owner.trim() || undefined,
+      })
+      if (error) return createValidationError(errorDetail(error))
+      followSetupRedirect(data.redirect)
+      // Stays submitting: the browser is leaving for GitHub.
+      await new Promise<never>(() => {})
+    },
+  })
 
   return (
     <Card>
@@ -61,32 +44,29 @@ const ConnectGitHub = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(event) => void onSubmit(event)}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="owner">GitHub organization</FieldLabel>
-              <Input id="owner" name="owner" placeholder="acme" />
-              <FieldDescription>
-                Leave empty to create the app on your personal account.
-              </FieldDescription>
-            </Field>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <Field>
-              <Button type="submit" disabled={pending}>
-                {pending ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <PlugIcon data-icon="inline-start" />
+        <form.AppForm>
+          <form.Form>
+            <FieldGroup>
+              <form.Field name="owner">
+                {(field) => (
+                  <field.Field>
+                    <field.Label>GitHub organization</field.Label>
+                    <field.TextInput placeholder="acme" />
+                    <field.Description>
+                      Leave empty to create the app on your personal account.
+                    </field.Description>
+                  </field.Field>
                 )}
-                Create GitHub App
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
+              </form.Field>
+              <form.Errors />
+              <Field>
+                <form.SubmitButton icon={<PlugIcon data-icon="inline-start" />}>
+                  Create GitHub App
+                </form.SubmitButton>
+              </Field>
+            </FieldGroup>
+          </form.Form>
+        </form.AppForm>
       </CardContent>
     </Card>
   )

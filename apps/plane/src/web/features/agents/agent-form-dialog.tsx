@@ -1,6 +1,9 @@
-import { type FormEvent, useState } from 'react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import {
+  required,
+  useAppForm,
+  validateOnBlur,
+} from '@/components/form/app-form'
 import {
   Dialog,
   DialogContent,
@@ -9,21 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Spinner } from '@/components/ui/spinner'
+import { FieldGroup } from '@/components/ui/field'
 import {
   type Agent,
   archLabels,
@@ -36,55 +25,11 @@ import {
 import { TokenReveal } from '@/features/agents/token-reveal'
 import { api, errorDetail } from '@/lib/api'
 
-const PlatformSelect = <Value extends string>({
-  id,
-  name,
-  label,
-  labels,
-  defaultValue,
-}: {
-  id: string
-  name: string
-  label: string
-  labels: Record<Value, string>
-  defaultValue?: Value
-}) => (
-  <Field>
-    <FieldLabel htmlFor={id}>{label}</FieldLabel>
-    <Select
-      name={name}
-      items={labels}
-      defaultValue={defaultValue ?? null}
-      required
-    >
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder="Select…" />
-      </SelectTrigger>
-      <SelectContent>
-        {(Object.entries(labels) as [Value, string][]).map(([value, text]) => (
-          <SelectItem key={value} value={value}>
-            {text}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </Field>
-)
+const MAX_SLOTS = 64
 
 // Labels are typed as a list separated by commas or spaces.
 const parseLabels = (value: string) =>
   value.split(/[\s,]+/).filter((label) => label.length > 0)
-
-const readForm = (form: HTMLFormElement) => {
-  const data = new FormData(form)
-  return {
-    name: String(data.get('name')).trim(),
-    os: data.get('os') as Agent['os'] | null,
-    arch: data.get('arch') as Agent['arch'] | null,
-    slots: Number(data.get('slots')),
-    labels: parseLabels(String(data.get('labels'))),
-  }
-}
 
 // Why the custom labels can't be saved, if they can't.
 const labelsError = (labels: string[]) => {
@@ -92,8 +37,154 @@ const labelsError = (labels: string[]) => {
     return `Use at most ${MAX_CUSTOM_LABELS} labels`
   }
   return labels.every(isValidLabel)
-    ? null
+    ? undefined
     : `Labels can be at most ${MAX_LABEL_LENGTH} characters`
+}
+
+// Mounted while the dialog is open, so each opening starts from `agent`.
+const AgentForm = ({
+  agent,
+  onSaved,
+  onCreated,
+  onClose,
+}: {
+  agent?: Agent
+  onSaved: () => void
+  onCreated: (token: string) => void
+  onClose: () => void
+}) => {
+  const form = useAppForm({
+    defaultValues: {
+      name: agent?.name ?? '',
+      os: agent?.os ?? (null as Agent['os'] | null),
+      arch: agent?.arch ?? (null as Agent['arch'] | null),
+      slots: agent?.slots ?? 1,
+      labels: agent?.labels.join(', ') ?? '',
+    },
+    onSubmit: async ({ value, createValidationError }) => {
+      const { os, arch } = value
+      // Already checked by the fields' validators; this narrows the types.
+      if (!os || !arch) return
+      const body = {
+        name: value.name.trim(),
+        os,
+        arch,
+        slots: value.slots,
+        labels: parseLabels(value.labels),
+      }
+      const result = agent
+        ? await api.agents({ id: agent.id }).patch(body)
+        : await api.agents.post(body)
+      if (result.error) return createValidationError(errorDetail(result.error))
+      onSaved()
+      if ('token' in result.data) onCreated(result.data.token)
+      else onClose()
+    },
+  })
+
+  return (
+    <form.AppForm>
+      <form.Form>
+        <FieldGroup>
+          <DialogHeader>
+            <DialogTitle>{agent ? 'Edit agent' : 'Create agent'}</DialogTitle>
+            <DialogDescription>
+              {agent
+                ? 'Changes apply the next time the agent connects.'
+                : "Agents run on your machines and pick up your organization's CI jobs."}
+            </DialogDescription>
+          </DialogHeader>
+          <form.Field
+            name="name"
+            validators={[required('Give the agent a name')]}
+          >
+            {(field) => (
+              <field.Field>
+                <field.Label>Name</field.Label>
+                <field.TextInput placeholder="build-box-1" maxLength={64} />
+                <field.Error />
+              </field.Field>
+            )}
+          </form.Field>
+          <div className="grid grid-cols-2 gap-4">
+            <form.Field
+              name="os"
+              validators={[required('Choose an operating system')]}
+            >
+              {(field) => (
+                <field.Field>
+                  <field.Label>Operating system</field.Label>
+                  <field.Select field={field} labels={osLabels} />
+                  <field.Error />
+                </field.Field>
+              )}
+            </form.Field>
+            <form.Field
+              name="arch"
+              validators={[required('Choose an architecture')]}
+            >
+              {(field) => (
+                <field.Field>
+                  <field.Label>Architecture</field.Label>
+                  <field.Select field={field} labels={archLabels} />
+                  <field.Error />
+                </field.Field>
+              )}
+            </form.Field>
+          </div>
+          <form.Field
+            name="slots"
+            validators={[
+              validateOnBlur(({ value }: { value: number }) =>
+                Number.isInteger(value) && value >= 1 && value <= MAX_SLOTS
+                  ? undefined
+                  : `Use a whole number from 1 to ${MAX_SLOTS}`,
+              ),
+            ]}
+          >
+            {(field) => (
+              <field.Field>
+                <field.Label>Concurrent jobs</field.Label>
+                <field.NumberInput min={1} max={MAX_SLOTS} step={1} />
+                <field.Description>
+                  How many jobs the machine runs at the same time.
+                </field.Description>
+                <field.Error />
+              </field.Field>
+            )}
+          </form.Field>
+          <form.Field
+            name="labels"
+            validators={[
+              validateOnBlur(({ value }: { value: string }) =>
+                labelsError(parseLabels(value)),
+              ),
+            ]}
+          >
+            {(field) => (
+              <field.Field>
+                <field.Label>Labels</field.Label>
+                <field.TextInput
+                  placeholder="gpu, xcode-16"
+                  autoComplete="off"
+                />
+                <field.Description>
+                  {agent
+                    ? `Extra runs-on labels, on top of: ${builtInLabels(agent).join(', ')}.`
+                    : 'Extra runs-on labels, on top of the machine’s name, operating system and architecture.'}
+                </field.Description>
+                <field.Error />
+              </field.Field>
+            )}
+          </form.Field>
+          <form.Errors />
+          <DialogFooter>
+            <form.SubmitButton>{agent ? 'Save' : 'Create'}</form.SubmitButton>
+          </DialogFooter>
+        </FieldGroup>
+      </form.Form>
+    </form.AppForm>
+  )
 }
 
 // Creates an agent, then shows its token; or, given an `agent`, edits it.
@@ -108,43 +199,7 @@ export const AgentFormDialog = ({
   onOpenChange: (open: boolean) => void
   onSaved: () => void
 }) => {
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
   const [token, setToken] = useState<string | null>(null)
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const { name, os, arch, slots, labels } = readForm(event.currentTarget)
-    if (!os || !arch) {
-      setError('Choose the machine’s operating system and architecture')
-      return
-    }
-    const invalidLabels = labelsError(labels)
-    if (invalidLabels) {
-      setError(invalidLabels)
-      return
-    }
-
-    setPending(true)
-    setError(null)
-    const result = agent
-      ? await api.agents({ id: agent.id }).patch({
-          name,
-          os,
-          arch,
-          slots,
-          labels,
-        })
-      : await api.agents.post({ name, os, arch, slots, labels })
-    setPending(false)
-    if (result.error) {
-      setError(errorDetail(result.error))
-      return
-    }
-    onSaved()
-    if ('token' in result.data) setToken(result.data.token)
-    else onOpenChange(false)
-  }
 
   return (
     <Dialog
@@ -152,10 +207,7 @@ export const AgentFormDialog = ({
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(open) => {
         // Reset once the close animation is done, not while it plays.
-        if (!open) {
-          setError(null)
-          setToken(null)
-        }
+        if (!open) setToken(null)
       }}
     >
       <DialogContent className="sm:max-w-md">
@@ -166,90 +218,13 @@ export const AgentFormDialog = ({
             onDone={() => onOpenChange(false)}
           />
         ) : (
-          // Keyed so the fields reset to the agent being edited.
-          <form key={agent?.id} onSubmit={(event) => void onSubmit(event)}>
-            <FieldGroup>
-              <DialogHeader>
-                <DialogTitle>
-                  {agent ? 'Edit agent' : 'Create agent'}
-                </DialogTitle>
-                <DialogDescription>
-                  {agent
-                    ? 'Changes apply the next time the agent connects.'
-                    : "Agents run on your machines and pick up your organization's CI jobs."}
-                </DialogDescription>
-              </DialogHeader>
-              <Field>
-                <FieldLabel htmlFor="agent-name">Name</FieldLabel>
-                <Input
-                  id="agent-name"
-                  name="name"
-                  placeholder="build-box-1"
-                  defaultValue={agent?.name}
-                  maxLength={64}
-                  required
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <PlatformSelect
-                  id="agent-os"
-                  name="os"
-                  label="Operating system"
-                  labels={osLabels}
-                  defaultValue={agent?.os}
-                />
-                <PlatformSelect
-                  id="agent-arch"
-                  name="arch"
-                  label="Architecture"
-                  labels={archLabels}
-                  defaultValue={agent?.arch}
-                />
-              </div>
-              <Field>
-                <FieldLabel htmlFor="agent-slots">Concurrent jobs</FieldLabel>
-                <Input
-                  id="agent-slots"
-                  name="slots"
-                  type="number"
-                  min={1}
-                  max={64}
-                  step={1}
-                  defaultValue={agent?.slots ?? 1}
-                  required
-                />
-                <FieldDescription>
-                  How many jobs the machine runs at the same time.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="agent-labels">Labels</FieldLabel>
-                <Input
-                  id="agent-labels"
-                  name="labels"
-                  placeholder="gpu, xcode-16"
-                  defaultValue={agent?.labels.join(', ')}
-                  autoComplete="off"
-                />
-                <FieldDescription>
-                  {agent
-                    ? `Extra runs-on labels, on top of: ${builtInLabels(agent).join(', ')}.`
-                    : 'Extra runs-on labels, on top of the machine’s name, operating system and architecture.'}
-                </FieldDescription>
-              </Field>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button type="submit" disabled={pending}>
-                  {pending && <Spinner data-icon="inline-start" />}
-                  {agent ? 'Save' : 'Create'}
-                </Button>
-              </DialogFooter>
-            </FieldGroup>
-          </form>
+          <AgentForm
+            key={agent?.id}
+            agent={agent}
+            onSaved={onSaved}
+            onCreated={setToken}
+            onClose={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>
