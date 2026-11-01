@@ -23,6 +23,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { UserMenu } from '@/components/user-menu'
 
 const nav = [
@@ -86,6 +87,7 @@ export const Page = ({
   heading = title,
   eyebrow,
   description,
+  describing = false,
   actions,
   wide = false,
   children,
@@ -96,6 +98,8 @@ export const Page = ({
   // A small line above the heading.
   eyebrow?: string
   description?: string
+  // The description depends on something still loading: hold its place.
+  describing?: boolean
   // Page-wide controls, beside the title.
   actions?: ReactNode
   // Room for wide tables.
@@ -122,8 +126,10 @@ export const Page = ({
             </p>
           )}
           <h1 className="font-semibold text-2xl tracking-tight">{heading}</h1>
-          {description && (
+          {description ? (
             <p className="text-muted-foreground text-sm">{description}</p>
+          ) : (
+            describing && <Skeleton className="my-0.5 h-4 w-72 max-w-full" />
           )}
         </div>
         {actions}

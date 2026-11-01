@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'wouter'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // A headline number, linking to where it comes from.
 export const StatCard = ({
@@ -35,6 +36,24 @@ export const StatCard = ({
     </div>
     <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
   </Link>
+)
+
+// A stat card's place while its number loads.
+export const StatCardSkeleton = ({
+  icon: Icon,
+  label,
+}: {
+  icon: LucideIcon
+  label: string
+}) => (
+  <div className="flex items-start gap-4 rounded-2xl border bg-card p-5">
+    <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      <Skeleton className="my-1 h-7 w-16" />
+      <Skeleton className="my-0.5 h-4 w-32" />
+    </div>
+  </div>
 )
 
 const percent = new Intl.NumberFormat(undefined, {

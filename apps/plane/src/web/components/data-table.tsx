@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -39,6 +40,11 @@ export const createDataTableColumnHelper = <Row extends RowData>() =>
 
 const ariaSort = { asc: 'ascending', desc: 'descending' } as const
 
+// Placeholder rows while the first data loads, with varied widths so they read
+// as text rather than a grid.
+const SKELETON_ROWS = 5
+const skeletonWidths = ['w-3/4', 'w-1/2', 'w-2/3', 'w-1/3', 'w-3/5']
+
 export const DataTable = <Row extends RowData>({
   columns,
   data,
@@ -47,6 +53,9 @@ export const DataTable = <Row extends RowData>({
   empty,
   columnVisibility,
   toolbar,
+  loading = false,
+  error,
+  dimmed = false,
 }: {
   // Keep stable (module scope or memoized): new columns rebuild the table.
   // biome-ignore lint/suspicious/noExplicitAny: columns mix value types.
@@ -60,6 +69,12 @@ export const DataTable = <Row extends RowData>({
   columnVisibility?: ColumnVisibilityState
   // Controls shown above the table, e.g. filters.
   toolbar?: ReactNode
+  // The data hasn't arrived yet: placeholder rows instead of `empty`.
+  loading?: boolean
+  // Shown in place of the rows when the data couldn't be loaded.
+  error?: ReactNode
+  // The rows are out of date and their replacement is on its way.
+  dimmed?: boolean
 }) => {
   const table = useTable({
     features,
@@ -70,9 +85,51 @@ export const DataTable = <Row extends RowData>({
     state: columnVisibility ? { columnVisibility } : undefined,
   })
   const rows = table.getRowModel().rows
+  const columnCount = table.getVisibleLeafColumns().length
+
+  const body = error ? (
+    <TableRow className="hover:bg-transparent">
+      <TableCell colSpan={columnCount} className="p-3">
+        {error}
+      </TableCell>
+    </TableRow>
+  ) : loading ? (
+    Array.from({ length: SKELETON_ROWS }, (_, index) => (
+      <TableRow
+        // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders.
+        key={index}
+        className="animate-delayed-in hover:bg-transparent"
+      >
+        {table.getVisibleLeafColumns().map((column, cell) => (
+          <TableCell key={column.id} className="px-4 py-3">
+            <Skeleton
+              className={`h-4 ${skeletonWidths[(index + cell) % skeletonWidths.length]}`}
+            />
+          </TableCell>
+        ))}
+      </TableRow>
+    ))
+  ) : rows.length === 0 ? (
+    <TableRow className="hover:bg-transparent">
+      <TableCell colSpan={columnCount}>{empty}</TableCell>
+    </TableRow>
+  ) : (
+    rows.map((row) => (
+      <TableRow key={row.id}>
+        {row.getVisibleCells().map((cell) => (
+          <TableCell key={cell.id} className="px-4 py-3">
+            <table.FlexRender cell={cell} />
+          </TableCell>
+        ))}
+      </TableRow>
+    ))
+  )
 
   const grid = (
-    <div className="overflow-hidden rounded-xl border">
+    <div
+      aria-busy={loading || dimmed}
+      className={`overflow-hidden rounded-xl border transition-opacity ${dimmed ? 'opacity-50' : ''}`}
+    >
       <Table>
         <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map((group) => (
@@ -112,25 +169,7 @@ export const DataTable = <Row extends RowData>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={table.getVisibleLeafColumns().length}>
-                {empty}
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-3">
-                    <table.FlexRender cell={cell} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
+        <TableBody>{body}</TableBody>
       </Table>
     </div>
   )

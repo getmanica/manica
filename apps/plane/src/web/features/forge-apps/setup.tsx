@@ -1,5 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeftIcon, CircleAlertIcon, CircleCheckIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'wouter'
 import { Page } from '@/components/layout'
 import { buttonVariants } from '@/components/ui/button'
@@ -11,41 +11,56 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { type ForgeApp, forgeLabels } from '@/features/forge-apps/forge-apps'
-import { api } from '@/lib/api'
+import { Skeleton } from '@/components/ui/skeleton'
+import { forgeAppsQuery, forgeLabels } from '@/features/forge-apps/forge-apps'
+import { authClient } from '@/lib/auth'
 
 // Landing pages for `GET /api/forge-apps/setup/callback`.
 
 export const ForgeAppSetupSuccess = () => {
   const [params] = useSearchParams()
   const appId = params.get('app')
-  const [app, setApp] = useState<ForgeApp | null>(null)
-
-  useEffect(() => {
-    void api['forge-apps']
-      .get()
-      .then(({ data }) => setApp(data?.find(({ id }) => id === appId) ?? null))
-  }, [appId])
+  const { data: organization, isPending } = authClient.useActiveOrganization()
+  const query = useQuery(forgeAppsQuery(organization?.id))
+  const app = query.data?.find(({ id }) => id === appId)
+  // Until the app arrives its name and install link are unknown: hold their
+  // place. If it can't be found, fall back to generic copy.
+  const loading = isPending || (!!organization && query.isPending)
 
   return (
     <Page title="Forge apps">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CircleCheckIcon className="mb-2 size-6 text-emerald-500" />
-          <CardTitle>
-            {app ? `${app.name} is ready` : 'Your app is ready'}
-          </CardTitle>
-          <CardDescription>
-            {app
-              ? `The ${forgeLabels[app.forge]} app was created on ${app.owner}. Install it on the repositories whose jobs Manica should run.`
-              : 'Install it on the repositories whose jobs Manica should run.'}
-          </CardDescription>
+          {loading ? (
+            <div aria-busy className="flex flex-col gap-2">
+              <span className="sr-only">Loading…</span>
+              <Skeleton className="my-0.5 h-4 w-48" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ) : (
+            <>
+              <CardTitle>
+                {app ? `${app.name} is ready` : 'Your app is ready'}
+              </CardTitle>
+              <CardDescription>
+                {app
+                  ? `The ${forgeLabels[app.forge]} app was created on ${app.owner}. Install it on the repositories whose jobs Manica should run.`
+                  : 'Install it on the repositories whose jobs Manica should run.'}
+              </CardDescription>
+            </>
+          )}
         </CardHeader>
         <CardFooter className="gap-2">
-          {app?.installUrl && (
-            <a href={app.installUrl} className={buttonVariants()}>
-              Install app
-            </a>
+          {loading ? (
+            <Skeleton className="h-8 w-24" />
+          ) : (
+            app?.installUrl && (
+              <a href={app.installUrl} className={buttonVariants()}>
+                Install app
+              </a>
+            )
           )}
           <Link
             href="/forge-apps"

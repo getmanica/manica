@@ -1,14 +1,19 @@
+import { useQuery } from '@tanstack/react-query'
 import { ExternalLinkIcon, PlugIcon, PlusIcon } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
 import { Page } from '@/components/layout'
+import { LoadError } from '@/components/loading'
 import { TableFilter } from '@/components/table-filter'
 import { Button } from '@/components/ui/button'
 import { ConnectGitHubDialog } from '@/features/forge-apps/connect-github-dialog'
 import { ForgeAppActions } from '@/features/forge-apps/forge-app-actions'
-import { type ForgeApp, forgeLabels } from '@/features/forge-apps/forge-apps'
+import {
+  type ForgeApp,
+  forgeAppsQuery,
+  forgeLabels,
+} from '@/features/forge-apps/forge-apps'
 import { ForgeIcon } from '@/features/forge-apps/forge-icon'
-import { api } from '@/lib/api'
 import { authClient } from '@/lib/auth'
 import { formatDate, formatLastSeen, formatTime } from '@/lib/format'
 import { useParam } from '@/lib/search-params'
@@ -117,26 +122,38 @@ const matches = (app: ForgeApp, text: string) => {
   )
 }
 
-const ForgeAppList = () => {
-  const [apps, setApps] = useState<ForgeApp[] | null>(null)
+const ForgeAppList = ({
+  organizationId,
+}: {
+  organizationId: string | undefined
+}) => {
+  const query = useQuery(forgeAppsQuery(organizationId))
+  const apps = query.data
   const [text, setText] = useParam('q')
-
-  useEffect(() => {
-    void api['forge-apps'].get().then(({ data }) => setApps(data ?? []))
-  }, [])
 
   const shown = useMemo(
     () => (apps ?? []).filter((app) => matches(app, text)),
     [apps, text],
   )
 
-  if (!apps) return null
   return (
     <DataTable
       columns={columns}
       data={shown}
       getRowId={(app) => app.id}
       initialSorting={[{ id: 'createdAt', desc: true }]}
+      loading={query.isPending}
+      error={
+        query.isError &&
+        !apps && (
+          <LoadError
+            title="Couldn't load forge apps"
+            error={query.error}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        )
+      }
       toolbar={
         <>
           <div className="mr-auto w-full max-w-xs">
@@ -146,13 +163,15 @@ const ForgeAppList = () => {
               placeholder="Filter apps…"
             />
           </div>
-          <span className="shrink-0 px-2 text-muted-foreground text-sm">
-            {apps.length} {apps.length === 1 ? 'app' : 'apps'} connected
-          </span>
+          {apps && (
+            <span className="shrink-0 px-2 text-muted-foreground text-sm">
+              {apps.length} {apps.length === 1 ? 'app' : 'apps'} connected
+            </span>
+          )}
         </>
       }
       empty={
-        apps.length === 0 ? (
+        apps?.length === 0 ? (
           <Empty
             title="No forge apps yet"
             detail="Connect GitHub to start receiving CI jobs."
@@ -178,24 +197,30 @@ export const ForgeApps = () => {
           ? `Connect apps to send ${organization.name}'s CI jobs to its agents.`
           : undefined
       }
+      describing={isPending}
       actions={
-        organization && (
-          <Button size="lg" onClick={() => setConnecting(true)}>
+        (isPending || organization) && (
+          <Button
+            size="lg"
+            disabled={!organization}
+            onClick={() => setConnecting(true)}
+          >
             <PlusIcon data-icon="inline-start" />
             Connect GitHub
           </Button>
         )
       }
     >
-      {isPending ? null : organization ? (
+      {isPending || organization ? (
         <>
-          {/* Remounts, and refetches, when the active organization changes. */}
-          <ForgeAppList key={organization.id} />
-          <ConnectGitHubDialog
-            open={connecting}
-            onOpenChange={setConnecting}
-            organizationName={organization.name}
-          />
+          <ForgeAppList organizationId={organization?.id} />
+          {organization && (
+            <ConnectGitHubDialog
+              open={connecting}
+              onOpenChange={setConnecting}
+              organizationName={organization.name}
+            />
+          )}
         </>
       ) : (
         <p className="text-muted-foreground text-sm">

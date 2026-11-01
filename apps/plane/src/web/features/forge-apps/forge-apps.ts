@@ -1,7 +1,18 @@
 import type { Treaty } from '@elysia/eden'
-import type { api } from '@/lib/api'
+import { queryOptions } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { unwrap } from '@/lib/query'
 
 export type ForgeApp = Treaty.Data<(typeof api)['forge-apps']['get']>[number]
+
+// The active organization's forge apps.
+export const forgeAppsQuery = (organizationId: string | undefined) =>
+  queryOptions({
+    queryKey: ['forge-apps', organizationId],
+    queryFn: ({ signal }) =>
+      api['forge-apps'].get({ fetch: { signal } }).then(unwrap),
+    enabled: organizationId !== undefined,
+  })
 
 type SetupRedirect = Treaty.Data<
   (typeof api)['forge-apps']['setup']['post']

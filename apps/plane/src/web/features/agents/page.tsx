@@ -1,8 +1,10 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PlusIcon, ServerIcon } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
 import { LabelChip } from '@/components/label-chip'
 import { Page } from '@/components/layout'
+import { LoadError } from '@/components/loading'
 import { TableFilter } from '@/components/table-filter'
 import { TableOptions } from '@/components/table-options'
 import { Button } from '@/components/ui/button'
@@ -11,11 +13,11 @@ import { AgentFormDialog } from '@/features/agents/agent-form-dialog'
 import {
   type Agent,
   agentMatches,
+  agentsQuery,
   formatPlatform,
 } from '@/features/agents/agents'
 import { DeleteAgentDialog } from '@/features/agents/delete-agent-dialog'
 import { RegenerateTokenDialog } from '@/features/agents/regenerate-token-dialog'
-import { api } from '@/lib/api'
 import { authClient } from '@/lib/auth'
 import { formatDate, formatLastSeen } from '@/lib/format'
 import { useListParam, useParam } from '@/lib/search-params'
@@ -115,8 +117,14 @@ const Empty = ({ title, detail }: { title: string; detail: string }) => (
   </div>
 )
 
-const AgentList = () => {
-  const [agents, setAgents] = useState<Agent[] | null>(null)
+const AgentList = ({
+  organizationId,
+}: {
+  organizationId: string | undefined
+}) => {
+  const queryClient = useQueryClient()
+  const query = useQuery(agentsQuery(organizationId))
+  const agents = query.data
   // The open dialog, if any. The agent it acts on outlives it, so the dialog
   // keeps its content while it animates closed.
   const [dialog, setDialog] = useState<'create' | AgentAction | null>(null)
@@ -125,11 +133,10 @@ const AgentList = () => {
   const [platforms, setPlatforms] = useListParam('platform')
   const [hidden, setHidden] = useListParam('hide')
 
-  const refresh = useCallback(() => {
-    void api.agents.get().then(({ data }) => setAgents(data ?? []))
-  }, [])
-
-  useEffect(refresh, [refresh])
+  const refresh = () =>
+    void queryClient.invalidateQueries({
+      queryKey: agentsQuery(organizationId).queryKey,
+    })
 
   const columns = useMemo(
     () =>
@@ -180,7 +187,6 @@ const AgentList = () => {
     onOpenChange: (open: boolean) => setDialog(open ? kind : null),
   })
 
-  if (!agents) return null
   return (
     <>
       <DataTable
@@ -189,6 +195,18 @@ const AgentList = () => {
         getRowId={(agent) => agent.id}
         initialSorting={[{ id: 'createdAt', desc: true }]}
         columnVisibility={columnVisibility}
+        loading={query.isPending}
+        error={
+          query.isError &&
+          !agents && (
+            <LoadError
+              title="Couldn't load agents"
+              error={query.error}
+              retrying={query.isFetching}
+              onRetry={() => void query.refetch()}
+            />
+          )
+        }
         toolbar={
           <>
             <TableFilter
@@ -212,7 +230,7 @@ const AgentList = () => {
           </>
         }
         empty={
-          agents.length === 0 ? (
+          agents?.length === 0 ? (
             <Empty
               title="No agents yet"
               detail="Create one, then run it on a machine to start running CI jobs."
@@ -256,10 +274,10 @@ export const Agents = () => {
           ? `Machines that run ${organization.name}'s CI jobs.`
           : undefined
       }
+      describing={isPending}
     >
-      {isPending ? null : organization ? (
-        // Remounts, and refetches, when the active organization changes.
-        <AgentList key={organization.id} />
+      {isPending || organization ? (
+        <AgentList organizationId={organization?.id} />
       ) : (
         <p className="text-muted-foreground text-sm">
           Select an organization from the menu to manage its agents.

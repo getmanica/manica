@@ -1,5 +1,7 @@
 import type { Treaty } from '@elysia/eden'
-import type { api } from '@/lib/api'
+import { queryOptions } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { unwrap } from '@/lib/query'
 
 export {
   builtInLabels,
@@ -37,3 +39,12 @@ export const agentMatches = (agent: Agent, text: string) => {
     ...agent.labels,
   ].some((value) => value.toLowerCase().includes(needle))
 }
+
+// The active organization's agents. The API reads the organization from the
+// session; it's in the key so each one keeps its own cache.
+export const agentsQuery = (organizationId: string | undefined) =>
+  queryOptions({
+    queryKey: ['agents', organizationId],
+    queryFn: ({ signal }) => api.agents.get({ fetch: { signal } }).then(unwrap),
+    enabled: organizationId !== undefined,
+  })

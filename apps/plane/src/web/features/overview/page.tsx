@@ -1,22 +1,30 @@
 import { overviewRanges } from '@shared/job-ranges'
+import { useQuery } from '@tanstack/react-query'
 import { BoxIcon, ClockIcon, HourglassIcon, PlayIcon } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
 import { Page } from '@/components/layout'
+import { LoadError, Loading } from '@/components/loading'
 import { previousRangeLabel, RangePicker } from '@/components/range-picker'
-import { AgentsGlance } from '@/features/overview/agents-glance'
-import { JobRunsChart } from '@/features/overview/job-runs-chart'
+import {
+  AgentsGlance,
+  AgentsGlanceSkeleton,
+} from '@/features/overview/agents-glance'
+import {
+  JobRunsChart,
+  JobRunsChartSkeleton,
+} from '@/features/overview/job-runs-chart'
 import {
   change,
   formatDuration,
   type Overview as OverviewData,
+  overviewQuery,
 } from '@/features/overview/overview'
-import { Change, StatCard } from '@/features/overview/stat-card'
-import { api } from '@/lib/api'
+import {
+  Change,
+  StatCard,
+  StatCardSkeleton,
+} from '@/features/overview/stat-card'
 import { authClient } from '@/lib/auth'
 import { useEnumParam } from '@/lib/search-params'
-
-// Agents and jobs move on their own: the overview follows along.
-const REFRESH_MS = 10_000
 
 const Stats = ({ overview }: { overview: OverviewData }) => {
   const { current, previous, agents, range } = overview
@@ -82,29 +90,50 @@ const Stats = ({ overview }: { overview: OverviewData }) => {
   )
 }
 
-const OverviewContent = ({ range }: { range: OverviewData['range'] }) => {
-  const [overview, setOverview] = useState<OverviewData | null>(null)
+const OverviewSkeleton = () => (
+  <Loading label="Loading overview…" className="flex flex-col gap-8">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCardSkeleton icon={BoxIcon} label="Agents" />
+      <StatCardSkeleton icon={PlayIcon} label="Jobs" />
+      <StatCardSkeleton icon={ClockIcon} label="Avg. run time" />
+      <StatCardSkeleton icon={HourglassIcon} label="Avg. queue wait" />
+    </div>
+    <JobRunsChartSkeleton />
+    <AgentsGlanceSkeleton />
+  </Loading>
+)
 
-  const refresh = useCallback(() => {
-    const utcOffset = -new Date().getTimezoneOffset()
-    void api.overview.get({ query: { range, utcOffset } }).then(({ data }) => {
-      if (data) setOverview(data)
-    })
-  }, [range])
+const OverviewContent = ({
+  organizationId,
+  range,
+}: {
+  organizationId: string | undefined
+  range: OverviewData['range']
+}) => {
+  const query = useQuery(overviewQuery(organizationId, range))
+  const overview = query.data
 
-  useEffect(() => {
-    refresh()
-    const timer = setInterval(refresh, REFRESH_MS)
-    return () => clearInterval(timer)
-  }, [refresh])
-
-  if (!overview) return null
+  if (!overview) {
+    return query.isError ? (
+      <LoadError
+        title="Couldn't load the overview"
+        error={query.error}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    ) : (
+      <OverviewSkeleton />
+    )
+  }
   return (
-    <>
+    <div
+      aria-busy={query.isPlaceholderData}
+      className={`flex flex-col gap-8 transition-opacity ${query.isPlaceholderData ? 'opacity-50' : ''}`}
+    >
       <Stats overview={overview} />
       <JobRunsChart overview={overview} />
       <AgentsGlance agents={overview.agents} />
-    </>
+    </div>
   )
 }
 
@@ -122,7 +151,7 @@ export const Overview = () => {
       heading={name ? `Welcome back, ${name}.` : 'Welcome back.'}
       description="Here's what's happening with your agents and CI jobs."
       actions={
-        organization && (
+        (isPending || organization) && (
           <RangePicker
             ranges={overviewRanges}
             value={range}
@@ -131,8 +160,8 @@ export const Overview = () => {
         )
       }
     >
-      {isPending ? null : organization ? (
-        <OverviewContent key={organization.id} range={range} />
+      {isPending || organization ? (
+        <OverviewContent organizationId={organization?.id} range={range} />
       ) : (
         <p className="text-muted-foreground text-sm">
           Select an organization from the menu to see its overview.

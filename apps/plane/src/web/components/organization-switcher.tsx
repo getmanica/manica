@@ -19,6 +19,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { authClient } from '@/lib/auth'
 import { organizationAvatar } from '@/lib/avatar'
 
@@ -45,7 +46,7 @@ const OrganizationAvatar = ({
 
 export const OrganizationSwitcher = () => {
   const { isMobile } = useSidebar()
-  const { data: active } = authClient.useActiveOrganization()
+  const { data: active, isPending } = authClient.useActiveOrganization()
   const { data: organizations } = authClient.useListOrganizations()
   const [creating, setCreating] = useState(false)
 
@@ -68,7 +69,12 @@ export const OrganizationSwitcher = () => {
             )}
             <span className="grid flex-1 text-left leading-tight">
               <span className="truncate font-medium">
-                {active?.name ?? 'Select organization'}
+                {active?.name ??
+                  (isPending ? (
+                    <Skeleton className="my-0.5 h-4 w-24" />
+                  ) : (
+                    'Select organization'
+                  ))}
               </span>
               <span className="truncate text-muted-foreground text-xs">
                 Organization

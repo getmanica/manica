@@ -1,6 +1,7 @@
 import { ChevronRightIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Link } from 'wouter'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   type AgentStatus,
   agentStatus,
@@ -75,23 +76,69 @@ const CurrentJob = ({ agent, now }: { agent: OverviewAgent; now: number }) => {
   )
 }
 
+const Section = ({ children }: { children: ReactNode }) => (
+  <section className="flex flex-col gap-3">
+    <div className="flex items-center justify-between">
+      <h2 className="font-semibold text-lg">Agents</h2>
+      <Link
+        href="/agents"
+        className="inline-flex items-center gap-1 font-medium text-sm hover:underline"
+      >
+        View all
+        <ChevronRightIcon className="size-4" />
+      </Link>
+    </div>
+    {children}
+  </section>
+)
+
+const Table = ({ children }: { children: ReactNode }) => (
+  <div className="overflow-hidden rounded-2xl border">
+    <table className="w-full text-sm">
+      <thead className="bg-muted/40 text-left text-muted-foreground">
+        <tr>
+          <th className="h-10 px-4 font-medium">Name</th>
+          <th className="h-10 px-4 font-medium">Status</th>
+          <th className="h-10 w-1/2 px-4 font-medium">Current job</th>
+          <th className="h-10 w-10 px-4">
+            <span className="sr-only">Open</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>{children}</tbody>
+    </table>
+  </div>
+)
+
+// The table's place while the agents load.
+export const AgentsGlanceSkeleton = () => (
+  <Section>
+    <Table>
+      {[0, 1, 2].map((row) => (
+        <tr key={row} className="border-t">
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-32" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-16" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-2/3" />
+          </td>
+          <td className="px-4 py-3" />
+        </tr>
+      ))}
+    </Table>
+  </Section>
+)
+
 // The busiest agents, and what they're running right now.
 export const AgentsGlance = ({ agents }: { agents: OverviewAgent[] }) => {
   const now = useNow()
   const shown = [...agents].sort(byActivity).slice(0, SHOWN)
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Agents</h2>
-        <Link
-          href="/agents"
-          className="inline-flex items-center gap-1 font-medium text-sm hover:underline"
-        >
-          View all
-          <ChevronRightIcon className="size-4" />
-        </Link>
-      </div>
+    <Section>
       {agents.length === 0 ? (
         <p className="rounded-2xl border border-dashed px-6 py-10 text-center text-muted-foreground text-sm">
           No agents yet.{' '}
@@ -101,63 +148,49 @@ export const AgentsGlance = ({ agents }: { agents: OverviewAgent[] }) => {
           to start running CI jobs.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-2xl border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left text-muted-foreground">
-              <tr>
-                <th className="h-10 px-4 font-medium">Name</th>
-                <th className="h-10 px-4 font-medium">Status</th>
-                <th className="h-10 w-1/2 px-4 font-medium">Current job</th>
-                <th className="h-10 w-10 px-4">
-                  <span className="sr-only">Open</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((agent) => {
-                const status = statuses[agentStatus(agent)]
-                return (
-                  <tr
-                    key={agent.id}
-                    className="border-t transition-colors hover:bg-muted/40"
+        <Table>
+          {shown.map((agent) => {
+            const status = statuses[agentStatus(agent)]
+            return (
+              <tr
+                key={agent.id}
+                className="border-t transition-colors hover:bg-muted/40"
+              >
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-3 font-medium">
+                    <span
+                      aria-hidden
+                      className={`size-2 shrink-0 rounded-full ${status.dot}`}
+                    />
+                    {agent.name}
+                  </span>
+                </td>
+                <td className={`px-4 py-3 ${status.text}`}>
+                  {status.label}
+                  {agent.running > 1 && (
+                    <span className="text-muted-foreground">
+                      {' '}
+                      · {agent.running}/{agent.slots}
+                    </span>
+                  )}
+                </td>
+                <td className="max-w-0 px-4 py-3">
+                  <CurrentJob agent={agent} now={now} />
+                </td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/agents?q=${encodeURIComponent(agent.name)}`}
+                    aria-label={`Open ${agent.name}`}
+                    className="flex justify-end text-muted-foreground hover:text-foreground"
                   >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-3 font-medium">
-                        <span
-                          aria-hidden
-                          className={`size-2 shrink-0 rounded-full ${status.dot}`}
-                        />
-                        {agent.name}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 ${status.text}`}>
-                      {status.label}
-                      {agent.running > 1 && (
-                        <span className="text-muted-foreground">
-                          {' '}
-                          · {agent.running}/{agent.slots}
-                        </span>
-                      )}
-                    </td>
-                    <td className="max-w-0 px-4 py-3">
-                      <CurrentJob agent={agent} now={now} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/agents?q=${encodeURIComponent(agent.name)}`}
-                        aria-label={`Open ${agent.name}`}
-                        className="flex justify-end text-muted-foreground hover:text-foreground"
-                      >
-                        <ChevronRightIcon className="size-4" />
-                      </Link>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    <ChevronRightIcon className="size-4" />
+                  </Link>
+                </td>
+              </tr>
+            )
+          })}
+        </Table>
       )}
-    </section>
+    </Section>
   )
 }

@@ -6,6 +6,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Overview } from '@/features/overview/overview'
 
 // Literal colours (Tailwind's emerald-500 and zinc-500): Tailwind only defines
@@ -51,6 +52,26 @@ const Legend = () => (
   </div>
 )
 
+const Header = () => (
+  <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-0.5">
+      <h2 className="font-semibold">Job runs</h2>
+      <p className="text-muted-foreground text-sm">
+        Finished jobs over time, grouped by result.
+      </p>
+    </div>
+    <Legend />
+  </div>
+)
+
+// The chart's place while its data loads.
+export const JobRunsChartSkeleton = () => (
+  <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
+    <Header />
+    <Skeleton className="h-64 w-full" />
+  </section>
+)
+
 // Finished jobs over the range, a bar per bucket, stacked by how they ended.
 export const JobRunsChart = ({ overview }: { overview: Overview }) => {
   const format = new Intl.DateTimeFormat(undefined, tickFormats[overview.range])
@@ -65,15 +86,7 @@ export const JobRunsChart = ({ overview }: { overview: Overview }) => {
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="font-semibold">Job runs</h2>
-          <p className="text-muted-foreground text-sm">
-            Finished jobs over time, grouped by result.
-          </p>
-        </div>
-        <Legend />
-      </div>
+      <Header />
       <div className="relative">
         <ChartContainer config={config} className="aspect-auto h-64 w-full">
           <BarChart data={data} margin={{ left: -16, right: 0, top: 8 }}>

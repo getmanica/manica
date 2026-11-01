@@ -1,8 +1,35 @@
 import type { Treaty } from '@elysia/eden'
-import type { api } from '@/lib/api'
+import type { OverviewRange } from '@shared/job-ranges'
+import { queryOptions } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { unwrap } from '@/lib/query'
 
 export type Overview = Treaty.Data<(typeof api)['overview']['get']>
 export type OverviewAgent = Overview['agents'][number]
+
+// Agents and jobs move on their own: the overview follows along.
+const REFRESH_MS = 10_000
+
+// The active organization's overview of `range`, bucketed in the browser's
+// time zone. A new range keeps showing the previous one until it arrives.
+export const overviewQuery = (
+  organizationId: string | undefined,
+  range: OverviewRange,
+) =>
+  queryOptions({
+    queryKey: ['overview', organizationId, range],
+    queryFn: ({ signal }) => {
+      const utcOffset = -new Date().getTimezoneOffset()
+      return api.overview
+        .get({ query: { range, utcOffset }, fetch: { signal } })
+        .then(unwrap)
+    },
+    enabled: organizationId !== undefined,
+    // Never another organization's: keys put its id second.
+    placeholderData: (previous, query) =>
+      query?.queryKey[1] === organizationId ? previous : undefined,
+    refetchInterval: REFRESH_MS,
+  })
 
 // e.g. "45s", "4m 32s", "1h 05m".
 export const formatDuration = (seconds: number) => {

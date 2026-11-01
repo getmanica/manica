@@ -1,15 +1,11 @@
 import { type JobRange, jobRanges } from '@shared/job-ranges'
+import { useQuery } from '@tanstack/react-query'
 import { ListChecksIcon } from 'lucide-react'
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { type ReactNode, useMemo } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
 import { LabelChip } from '@/components/label-chip'
 import { Page } from '@/components/layout'
+import { LoadError } from '@/components/loading'
 import { RangePicker, rangeLabel } from '@/components/range-picker'
 import { TableFilter } from '@/components/table-filter'
 import { TableOptions } from '@/components/table-options'
@@ -19,16 +15,13 @@ import {
   type Job,
   jobMatches,
   jobOutcome,
+  jobsQuery,
   type OutcomeTone,
   outcomeTone,
 } from '@/features/jobs/jobs'
-import { api } from '@/lib/api'
 import { authClient } from '@/lib/auth'
 import { formatLastSeen } from '@/lib/format'
 import { useEnumParam, useListParam, useParam } from '@/lib/search-params'
-
-// Jobs move on their own: the list follows along.
-const REFRESH_MS = 5000
 
 const column = createDataTableColumnHelper<Job>()
 
@@ -180,23 +173,18 @@ const NoJobs = ({ range }: { range: JobRange }) =>
     />
   )
 
-const JobList = ({ range }: { range: JobRange }) => {
-  const [jobs, setJobs] = useState<Job[] | null>(null)
+const JobList = ({
+  organizationId,
+  range,
+}: {
+  organizationId: string | undefined
+  range: JobRange
+}) => {
+  const query = useQuery(jobsQuery(organizationId, range))
+  const jobs = query.data
   const [text, setText] = useParam('q')
   const [statuses, setStatuses] = useListParam('status')
   const [hidden, setHidden] = useListParam('hide')
-
-  const refresh = useCallback(() => {
-    void api.jobs.get({ query: { range } }).then(({ data }) => {
-      if (data) setJobs(data)
-    })
-  }, [range])
-
-  useEffect(() => {
-    refresh()
-    const timer = setInterval(refresh, REFRESH_MS)
-    return () => clearInterval(timer)
-  }, [refresh])
 
   const outcomes = useMemo(
     () => [...new Set([...commonOutcomes, ...(jobs ?? []).map(jobOutcome)])],
@@ -218,7 +206,6 @@ const JobList = ({ range }: { range: JobRange }) => {
     [hidden],
   )
 
-  if (!jobs) return null
   return (
     <DataTable
       columns={columns}
@@ -226,6 +213,19 @@ const JobList = ({ range }: { range: JobRange }) => {
       getRowId={(job) => job.id}
       initialSorting={[{ id: 'queuedAt', desc: true }]}
       columnVisibility={columnVisibility}
+      loading={query.isPending}
+      dimmed={query.isPlaceholderData}
+      error={
+        query.isError &&
+        !jobs && (
+          <LoadError
+            title="Couldn't load jobs"
+            error={query.error}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        )
+      }
       toolbar={
         <>
           <TableFilter
@@ -245,7 +245,7 @@ const JobList = ({ range }: { range: JobRange }) => {
         </>
       }
       empty={
-        jobs.length === 0 ? (
+        jobs?.length === 0 ? (
           <NoJobs range={range} />
         ) : (
           <Empty
@@ -271,14 +271,15 @@ export const Jobs = () => {
           ? `CI jobs for ${organization.name}'s agents, most recent first.`
           : undefined
       }
+      describing={isPending}
       actions={
-        organization && (
+        (isPending || organization) && (
           <RangePicker ranges={jobRanges} value={range} onChange={setRange} />
         )
       }
     >
-      {isPending ? null : organization ? (
-        <JobList key={organization.id} range={range} />
+      {isPending || organization ? (
+        <JobList organizationId={organization?.id} range={range} />
       ) : (
         <p className="text-muted-foreground text-sm">
           Select an organization from the menu to see its jobs.
