@@ -8,11 +8,11 @@
   "scripts": {
     "check-types": "tsc",
     "db:generate": "drizzle-kit generate",
-    "dev": "bun --watch src/index.ts",
+    "dev": "bun --watch src/main.ts",
     "format": "biome format --write",
     "format:check": "biome format",
     "lint": "biome lint",
-    "start": "bun src/index.ts",
+    "start": "bun src/main.ts",
     "test": "bun test"
   },
   "dependencies": {

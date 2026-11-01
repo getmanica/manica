@@ -4,7 +4,8 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "types": ["bun"],
     "paths": {
-      "@/*": ["./src/web/*"]
+      "@/*": ["./src/web/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src", "test", "drizzle.config.ts"]

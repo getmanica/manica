@@ -1,14 +1,14 @@
 import { Redirect, Route, Switch } from 'wouter'
 import { AppLayout } from '@/components/layout'
-import { authClient } from '@/lib/auth'
-import { Agents } from '@/pages/agents'
+import { Agents } from '@/features/agents/page'
+import { ForgeApps } from '@/features/forge-apps/page'
 import {
   ForgeAppSetupError,
   ForgeAppSetupSuccess,
-} from '@/pages/forge-app-setup'
-import { ForgeApps } from '@/pages/forge-apps'
+} from '@/features/forge-apps/setup'
+import { Jobs } from '@/features/jobs/page'
+import { authClient } from '@/lib/auth'
 import { Home } from '@/pages/home'
-import { Jobs } from '@/pages/jobs'
 import { Login } from '@/pages/login'
 
 export const App = () => {

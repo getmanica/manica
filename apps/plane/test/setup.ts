@@ -23,7 +23,7 @@ Bun.env.BETTER_AUTH_URL ||= 'http://localhost:3000'
 Bun.env.BETTER_AUTH_SECRET ||= 'test'
 Bun.env.ENCRYPTION_KEY ||= Buffer.alloc(32).toString('base64')
 
-const { db, runMigrations } = await import('../src/db')
+const { db, runMigrations } = await import('../src/api/platform/db')
 await runMigrations()
 
 afterAll(async () => {

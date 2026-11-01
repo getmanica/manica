@@ -1,4 +1,5 @@
-import type { Forge, ForgeKind } from '../src/forges/forge'
+import type { Forge } from '../src/api/forges/forge'
+import type { ForgeKind } from '../src/api/platform/db/schema'
 
 const unexpected = (name: string) => () => {
   throw new Error(`Unexpected call to ${name}`)

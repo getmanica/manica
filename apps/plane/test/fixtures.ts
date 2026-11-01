@@ -1,6 +1,6 @@
-import { encrypt } from '../src/crypto'
-import { db } from '../src/db'
-import { agent, forgeApp, organization } from '../src/db/schema'
+import { encrypt } from '../src/api/platform/crypto'
+import { db } from '../src/api/platform/db'
+import { agent, forgeApp, organization } from '../src/api/platform/db/schema'
 
 // An organization with a forge app, to hang test data off.
 export const createOrganization = async () => {
