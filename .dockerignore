@@ -1,0 +1,8 @@
+**/node_modules
+**/.turbo
+**/dist
+**/.env
+**/.env.*
+.git
+.github
+apps/plane/test

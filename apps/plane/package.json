@@ -1,11 +1,13 @@
 {
   "name": "plane",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/types.ts"
   },
   "scripts": {
+    "build": "bun scripts/build.ts",
     "check-types": "tsc",
     "db:generate": "drizzle-kit generate",
     "dev": "bun --watch src/main.ts",

@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 const required = (name: string) => {
   const value = Bun.env[name]
   if (!value) throw new Error(`Missing environment variable: ${name}`)
@@ -17,4 +19,9 @@ export const env = {
   // Base URL forges deliver webhooks to; must be reachable from the forge.
   publicUrl: Bun.env.PUBLIC_URL || betterAuthUrl,
   encryptionKey: required('ENCRYPTION_KEY'),
+  // Defaults to the repo's drizzle/. A compiled plane can't find it on its
+  // own: import.meta.url points inside the binary, so the image sets it.
+  migrationsDir:
+    Bun.env.MIGRATIONS_DIR ||
+    fileURLToPath(new URL('../../../drizzle', import.meta.url)),
 }
