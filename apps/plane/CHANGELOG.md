@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/getmanica/manica/compare/plane-v0.2.0...plane-v0.3.0) (2026-11-02)
+
+
+### Features
+
+* connect MCP clients from the console ([9409e1b](https://github.com/getmanica/manica/commit/9409e1b0b43dc3036614f3760a480d5d7fa76788))
+* make better-auth the OAuth server for MCP clients ([b45389a](https://github.com/getmanica/manica/commit/b45389a065f02e0bbcf93ff70beaa19e6f04bf35))
+* serve plane's organization to MCP clients ([441e525](https://github.com/getmanica/manica/commit/441e5255c2c26890b19472c76a8fc01f73b9ccfd))
+
+
+### Bug Fixes
+
+* pagination ([d48e71a](https://github.com/getmanica/manica/commit/d48e71aa8060175c4f197f3b05a5fbe57ca0b2de))
+
 ## [0.2.0](https://github.com/getmanica/manica/compare/plane-v0.1.0...plane-v0.2.0) (2026-11-02)
 
 
