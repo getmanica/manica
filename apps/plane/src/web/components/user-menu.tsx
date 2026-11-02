@@ -1,5 +1,6 @@
-import { ChevronsUpDownIcon, LogOutIcon } from 'lucide-react'
+import { ChevronsUpDownIcon, LogOutIcon, UserIcon } from 'lucide-react'
 import { useMemo } from 'react'
+import { Link } from 'wouter'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -71,6 +72,11 @@ export const UserMenu = () => {
                 <UserIdentity user={user} avatar={avatar} />
               </DropdownMenuLabel>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem render={<Link href="/profile" />}>
+              <UserIcon />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void authClient.signOut()}>
               <LogOutIcon />

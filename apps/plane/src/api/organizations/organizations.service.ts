@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../platform/db'
 import { member, organization } from '../platform/db/schema'
 
@@ -35,5 +35,16 @@ export const organizationsService = {
       .orderBy(asc(member.createdAt))
       .limit(1)
     return membership?.organizationId ?? this.createPersonal(userId)
+  },
+
+  // Deletes the organizations the user is the only member of, with
+  // everything in them; organizations shared with others stay.
+  async deleteSoleOwned(userId: string) {
+    const sole = db
+      .select({ id: member.organizationId })
+      .from(member)
+      .groupBy(member.organizationId)
+      .having(sql`count(*) = 1 and bool_and(${member.userId} = ${userId})`)
+    await db.delete(organization).where(inArray(organization.id, sole))
   },
 }

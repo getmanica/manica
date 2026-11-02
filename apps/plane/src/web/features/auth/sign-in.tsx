@@ -1,9 +1,10 @@
 import { ArrowRightIcon } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link, useSearchParams } from 'wouter'
 import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
-import { GitHubSignIn } from '@/features/auth/github-sign-in'
+import { OtherSignIn } from '@/features/auth/other-sign-in'
 import { authClient } from '@/lib/auth'
 
 // Its own form, apart from signing up, so password managers see a sign-in
@@ -12,6 +13,16 @@ export const SignIn = () => {
   // Set by better-auth when signing in with GitHub fails.
   const [params] = useSearchParams()
   const failed = params.get('error')
+
+  // Offers saved passkeys in the email field's autofill. Signing in this way
+  // updates the session, which takes the app past this page.
+  useEffect(() => {
+    void window.PublicKeyCredential?.isConditionalMediationAvailable?.().then(
+      (available) => {
+        if (available) void authClient.signIn.passkey({ autoFill: true })
+      },
+    )
+  }, [])
 
   const form = useAppForm({
     defaultValues: { email: '', password: '' },
@@ -51,7 +62,7 @@ export const SignIn = () => {
                     <field.Label>Email</field.Label>
                     <field.TextInput
                       type="email"
-                      autoComplete="username"
+                      autoComplete="username webauthn"
                       placeholder="you@example.com"
                       className="h-10"
                     />
@@ -82,7 +93,7 @@ export const SignIn = () => {
             </FieldGroup>
           </form.Form>
         </form.AppForm>
-        <GitHubSignIn />
+        <OtherSignIn passkey />
         <p className="text-center text-muted-foreground text-sm">
           Don't have an account?{' '}
           <Link

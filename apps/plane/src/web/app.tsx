@@ -10,6 +10,7 @@ import {
 } from '@/features/forge-apps/setup'
 import { Jobs } from '@/features/jobs/page'
 import { Overview } from '@/features/overview/page'
+import { Profile } from '@/features/profile/page'
 import { authClient } from '@/lib/auth'
 
 export const App = () => {
@@ -50,6 +51,9 @@ export const App = () => {
         </Route>
         <Route path="/forge-apps">
           <ForgeApps />
+        </Route>
+        <Route path="/profile">
+          <Profile />
         </Route>
         <Route path="/">
           <Overview />

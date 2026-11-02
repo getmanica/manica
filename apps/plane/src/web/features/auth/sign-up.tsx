@@ -1,17 +1,11 @@
 import { ArrowRightIcon } from 'lucide-react'
 import { Link } from 'wouter'
-import {
-  required,
-  useAppForm,
-  validateOnBlur,
-} from '@/components/form/app-form'
+import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
-import { GitHubSignIn } from '@/features/auth/github-sign-in'
+import { OtherSignIn } from '@/features/auth/other-sign-in'
+import { MIN_PASSWORD_LENGTH, newPassword } from '@/features/auth/password'
 import { authClient } from '@/lib/auth'
-
-// better-auth's default minimum.
-const MIN_PASSWORD_LENGTH = 8
 
 // Its own form, apart from signing in, so password managers see a sign-up
 // form and offer to generate and save a new password.
@@ -76,16 +70,7 @@ export const SignUp = () => {
                   </field.Field>
                 )}
               </form.Field>
-              <form.Field
-                name="password"
-                validators={[
-                  validateOnBlur(({ value }: { value: string }) =>
-                    value.length < MIN_PASSWORD_LENGTH
-                      ? `Use at least ${MIN_PASSWORD_LENGTH} characters`
-                      : undefined,
-                  ),
-                ]}
-              >
+              <form.Field name="password" validators={[newPassword]}>
                 {(field) => (
                   <field.Field>
                     <field.Label>Password</field.Label>
@@ -109,7 +94,7 @@ export const SignUp = () => {
             </FieldGroup>
           </form.Form>
         </form.AppForm>
-        <GitHubSignIn />
+        <OtherSignIn />
         <p className="text-center text-muted-foreground text-sm">
           Already have an account?{' '}
           <Link
