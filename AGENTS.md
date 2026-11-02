@@ -34,6 +34,7 @@ Run from the repo root (Bun only, no npm/pnpm):
   - `platform/`: `env`, `crypto`, the `scheduler`, `pinned-fetch` (SSRF-safe fetch for URLs strangers pick, e.g. MCP client metadata documents), and `db/` (schema split per feature under `db/schema/`, which owns the enums and their constants)
   - `forges/`: the `Forge` port, its registry, and the adapters (`github/`); no feature code
   - features, each with its controllers, services, `errors.ts`, and tests: `organizations/`, `auth/` (better-auth, the session and agent-token macros, and `principal.ts`: who a request acts as and `can(principal, permissions)`), `agents/`, `runners/` (including `agent.controller.ts`, the API the agent binary calls), `jobs/`, `forge-apps/` (registering apps on a forge and receiving their webhooks)
-  - `app.ts` mounts the controllers grouped by audience (console, agents, forges); `errors.ts` holds the cross-cutting HTTP errors
+  - `mcp/`: the MCP server, on top of the features: its tools (`tools/*`) call their services, never their controllers, acting as a principal from the token and the organization picked at consent (`mcpGrant`); `errors.ts` is the one place typed errors become tool errors. Nothing imports it but `app.ts`
+  - `app.ts` mounts the controllers grouped by audience (console, agents, forges, MCP clients); `errors.ts` holds the cross-cutting HTTP errors
 - `web/`: per-feature code under `features/<feature>/`, shared chrome under `components/`, shadcn under `components/ui`
 - import named modules directly; no barrel files (`api/runners/index.ts` is the one wiring point, building the services from the forge registry)

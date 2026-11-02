@@ -1,28 +1,12 @@
 import { Elysia, t } from 'elysia'
-import { MAX_CUSTOM_LABELS, MAX_LABEL_LENGTH } from '../../shared/labels'
 import { agentSorts } from '../../shared/pagination'
-import { agentArches, agentOses, platformKeys } from '../../shared/platform'
-import { authMacro, type Permissions } from '../auth/session'
+import { platformKeys } from '../../shared/platform'
+import { authMacro } from '../auth/session'
 import { listQuery } from '../platform/pagination'
 import { agentsService } from './agents.service'
+import { agentFields, manageAgents as manage } from './schema'
 
-// Requires a non-blank character: the name is stored trimmed.
-const name = t.String({ minLength: 1, maxLength: 64, pattern: '\\S' })
-const os = t.UnionEnum(agentOses)
-const arch = t.UnionEnum(agentArches)
-const slots = t.Integer({ minimum: 1, maximum: 64 })
-// See `isValidLabel`.
-const labels = t.Array(
-  t.String({
-    minLength: 1,
-    maxLength: MAX_LABEL_LENGTH,
-    pattern: '^[^\\s,]+$',
-  }),
-  { maxItems: MAX_CUSTOM_LABELS },
-)
-
-// Managing agents takes the same permission as managing the organization.
-const manage: Permissions = { organization: ['update'] }
+const { name, os, arch, slots, labels } = agentFields
 
 export const agentsController = new Elysia({ prefix: '/agents' })
   .use(authMacro)

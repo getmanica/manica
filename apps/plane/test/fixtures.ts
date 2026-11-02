@@ -3,6 +3,7 @@ import { db } from '../src/api/platform/db'
 import {
   agent,
   forgeApp,
+  job,
   member,
   organization,
   user,
@@ -77,4 +78,32 @@ export const createMember = async (
     role,
     createdAt: new Date(),
   })
+}
+
+export const createJob = async (
+  organizationId: string,
+  forgeAppId: string,
+  values: Partial<typeof job.$inferInsert> = {},
+) => {
+  const id = crypto.randomUUID()
+  const [created] = await db
+    .insert(job)
+    .values({
+      id,
+      organizationId,
+      forgeAppId,
+      externalId: id,
+      runId: '1',
+      installationId: '7',
+      repository: 'acme/widgets',
+      name: `job-${id}`,
+      url: 'https://github.com/acme/widgets/actions/runs/1',
+      labels: ['self-hosted'],
+      status: 'queued',
+      queuedAt: new Date(),
+      ...values,
+    })
+    .returning()
+  if (!created) throw new Error('No job created')
+  return created
 }

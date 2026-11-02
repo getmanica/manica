@@ -5,13 +5,17 @@ import { authMacro } from './auth/session'
 import { forgeAppsController } from './forge-apps/forge-apps.controller'
 import { forgeWebhooksController } from './forge-apps/webhooks.controller'
 import { jobsController } from './jobs/jobs.controller'
+import { connectedAppsController } from './mcp/connected-apps.controller'
+import { mcpController } from './mcp/mcp.controller'
 import { overviewController } from './overview/overview.controller'
 import { agentController } from './runners/agent.controller'
 
-// The API has three audiences, each authenticated its own way:
+// The API has four audiences, each authenticated its own way:
 // - the console (the web app), with a better-auth session (`auth/session`);
 // - agents, with the bearer token they were created with (`auth/agent-token`);
-// - forges, delivering webhooks signed with the app's secret.
+// - forges, delivering webhooks signed with the app's secret;
+// - MCP clients, with an OAuth access token better-auth issued them
+//   (`mcp/mcp.controller`), outside `/api` at `/mcp`.
 const api = new Elysia({ prefix: '/api' })
   .use(authMacro)
   .get('/health', () => ({ status: 'ok' }))
@@ -22,6 +26,7 @@ const api = new Elysia({ prefix: '/api' })
   .use(forgeAppsController)
   .use(jobsController)
   .use(overviewController)
+  .use(connectedAppsController)
   // Agents
   .use(agentController)
   // Forges
@@ -30,6 +35,10 @@ const api = new Elysia({ prefix: '/api' })
 // better-auth is mounted on the unprefixed root so it sees the full
 // `/api/auth/*` path: mounting inside the `/api` instance strips the prefix,
 // which breaks better-auth routing and the callback URLs it generates.
-export const app = new Elysia().mount(auth.handler).use(api)
+export const app = new Elysia()
+  .mount(auth.handler)
+  .use(api)
+  // MCP clients
+  .use(mcpController)
 
 export type App = typeof app
