@@ -60,3 +60,17 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha,scope=plane
           cache-to: type=gha,mode=max,scope=plane
+
+  deploy:
+    name: deploy plane
+    needs: plane
+    # Coolify runs the :latest tag, which prereleases don't move.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: trigger deploy
+        run: curl --fail-with-body --silent --show-error --request GET "$DEPLOY_WEBHOOK" --header "Authorization: Bearer $DEPLOY_TOKEN"
+        env:
+          DEPLOY_WEBHOOK: ${{ secrets.DEPLOY_WEBHOOK }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
