@@ -1,10 +1,18 @@
-import { and, desc, eq, gt } from 'drizzle-orm'
+import { type AnyColumn, and, eq, gt, ilike, or, sql } from 'drizzle-orm'
+import type { ForgeAppSort } from '../../shared/pagination'
 import { forges } from '../forges/registry'
 import { encrypt } from '../platform/crypto'
 import { db } from '../platform/db'
 import type { ForgeKind } from '../platform/db/schema'
 import { forgeApp, forgeAppSetup } from '../platform/db/schema'
-import { ForgeAppSetupInvalidError } from './errors'
+import {
+  containing,
+  filterText,
+  type ListOptions,
+  pageWindow,
+  sortBy,
+} from '../platform/pagination'
+import { ForgeAppNotFoundError, ForgeAppSetupInvalidError } from './errors'
 
 // Forges expire their setup codes after an hour (GitHub's manifest codes do).
 const SETUP_TTL_MS = 60 * 60 * 1000
@@ -31,13 +39,62 @@ const toPublic = ({
   ...app
 }: typeof forgeApp.$inferSelect) => app
 
+const sorts: Record<ForgeAppSort, AnyColumn> = {
+  name: forgeApp.name,
+  owner: forgeApp.owner,
+  status: forgeApp.lastDeliveryAt,
+  createdAt: forgeApp.createdAt,
+}
+
 export const forgeAppsService = {
-  list: (organizationId: string) =>
-    db
+  // A page of the organization's forge apps, newest first unless sorted
+  // otherwise: only those whose name, slug, account or forge contain the
+  // filter text.
+  async list(
+    organizationId: string,
+    {
+      sort = 'createdAt',
+      dir = 'desc',
+      ...options
+    }: ListOptions<ForgeAppSort> = {},
+  ) {
+    const text = filterText(options.q)
+    const pattern = text && containing(text)
+    const where = and(
+      eq(forgeApp.organizationId, organizationId),
+      pattern
+        ? or(
+            ilike(forgeApp.name, pattern),
+            ilike(forgeApp.slug, pattern),
+            ilike(forgeApp.owner, pattern),
+            ilike(sql`${forgeApp.forge}::text`, pattern),
+          )
+        : undefined,
+    )
+    const { limit, offset } = pageWindow(options)
+
+    const [items, total] = await Promise.all([
+      db
+        .select(publicColumns)
+        .from(forgeApp)
+        .where(where)
+        .orderBy(...sortBy(sorts[sort], dir, forgeApp.id))
+        .limit(limit)
+        .offset(offset),
+      db.$count(forgeApp, where),
+    ])
+    return { items, total }
+  },
+
+  async get(organizationId: string, id: string) {
+    const [app] = await db
       .select(publicColumns)
       .from(forgeApp)
-      .where(eq(forgeApp.organizationId, organizationId))
-      .orderBy(desc(forgeApp.createdAt)),
+      .where(
+        and(eq(forgeApp.id, id), eq(forgeApp.organizationId, organizationId)),
+      )
+    return app ?? new ForgeAppNotFoundError()
+  },
 
   async startSetup(input: {
     forge: ForgeKind

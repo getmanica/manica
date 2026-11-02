@@ -120,23 +120,122 @@ describe('record', () => {
   })
 })
 
-test('list is scoped to the organization', async () => {
-  await jobsService.record(app, event())
-  const other = await createOrganization()
-  expect(await jobsService.list(app.organizationId)).toHaveLength(1)
-  expect(await jobsService.list(other.organizationId)).toHaveLength(0)
-})
+describe('list', () => {
+  const listed = async (options?: Parameters<typeof jobsService.list>[1]) =>
+    (await jobsService.list(app.organizationId, options)).items.map(
+      ({ name }) => name,
+    )
 
-test('list only includes jobs queued since the given time', async () => {
-  await jobsService.record(app, event())
-  await jobsService.record(
-    app,
-    event({ externalId: '2', queuedAt: new Date('2026-10-31T12:00:00Z') }),
-  )
-  const since = new Date('2026-10-31T11:00:00Z')
-  const listed = await jobsService.list(app.organizationId, since)
-  expect(listed.map((job) => job.queuedAt)).toEqual([
-    new Date('2026-10-31T12:00:00Z'),
-  ])
-  expect(await jobsService.list(app.organizationId)).toHaveLength(2)
+  // build (queued 10:00, queued), test (11:00, running), lint (12:00,
+  // failed), deploy (13:00, succeeded).
+  const recordFour = async () => {
+    await jobsService.record(app, event())
+    await jobsService.record(
+      app,
+      event({
+        externalId: '2',
+        name: 'test',
+        queuedAt: new Date('2026-10-31T11:00:00Z'),
+        ...started,
+      }),
+    )
+    await jobsService.record(
+      app,
+      event({
+        externalId: '3',
+        name: 'lint',
+        repository: 'acme/gadgets',
+        queuedAt: new Date('2026-10-31T12:00:00Z'),
+        ...started,
+        ...completed,
+        conclusion: 'timed_out',
+      }),
+    )
+    await jobsService.record(
+      app,
+      event({
+        externalId: '4',
+        name: 'deploy',
+        queuedAt: new Date('2026-10-31T13:00:00Z'),
+        ...started,
+        ...completed,
+      }),
+    )
+  }
+
+  test('is scoped to the organization', async () => {
+    await jobsService.record(app, event())
+    const other = await createOrganization()
+    expect(await jobsService.list(app.organizationId)).toMatchObject({
+      total: 1,
+    })
+    expect(await jobsService.list(other.organizationId)).toEqual({
+      items: [],
+      total: 0,
+      outcomes: [],
+    })
+  })
+
+  test('only includes jobs queued since the given time', async () => {
+    await recordFour()
+    const since = new Date('2026-10-31T11:30:00Z')
+    expect(await listed({ since })).toEqual(['deploy', 'lint'])
+    expect(await listed()).toHaveLength(4)
+  })
+
+  test('pages through the latest jobs first', async () => {
+    for (let hour = 0; hour < 12; hour++) {
+      await jobsService.record(
+        app,
+        event({
+          externalId: `${hour}`,
+          name: `job-${hour}`,
+          queuedAt: new Date(Date.UTC(2026, 9, 31, hour)),
+        }),
+      )
+    }
+    const first = await jobsService.list(app.organizationId, { size: 10 })
+    expect(first.total).toBe(12)
+    expect(first.items).toHaveLength(10)
+    expect(first.items[0]?.name).toBe('job-11')
+    expect(await listed({ size: 10, page: 2 })).toEqual(['job-1', 'job-0'])
+    expect(await listed({ size: 10, page: 3 })).toEqual([])
+  })
+
+  test('sorts by a column either way', async () => {
+    await recordFour()
+    expect(await listed({ sort: 'name', dir: 'asc' })).toEqual([
+      'build',
+      'deploy',
+      'lint',
+      'test',
+    ])
+    expect(await listed({ sort: 'outcome', dir: 'desc' })).toEqual([
+      'lint',
+      'deploy',
+      'test',
+      'build',
+    ])
+  })
+
+  test('filters by outcome, and lists the outcomes there are', async () => {
+    await recordFour()
+    expect(await listed({ outcomes: ['queued', 'timed_out'] })).toEqual([
+      'lint',
+      'build',
+    ])
+    const { outcomes } = await jobsService.list(app.organizationId, {
+      outcomes: ['queued'],
+    })
+    expect(outcomes).toEqual(['in_progress', 'queued', 'success', 'timed_out'])
+  })
+
+  test('filters by text, as the console shows the job', async () => {
+    await recordFour()
+    expect(await listed({ q: 'GADGETS' })).toEqual(['lint'])
+    expect(await listed({ q: 'running' })).toEqual(['test'])
+    expect(await listed({ q: 'timed out' })).toEqual(['lint'])
+    expect(await listed({ q: 'macos' })).toHaveLength(4)
+    expect(await listed({ q: '%' })).toEqual([])
+  })
 })

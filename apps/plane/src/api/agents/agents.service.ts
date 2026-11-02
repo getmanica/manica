@@ -1,9 +1,34 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import {
+  type AnyColumn,
+  and,
+  eq,
+  ilike,
+  inArray,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import { normalizeLabels } from '../../shared/labels'
-import type { AgentArch, AgentOs } from '../../shared/platform'
+import type { AgentSort } from '../../shared/pagination'
+import {
+  type AgentArch,
+  type AgentOs,
+  formatPlatform,
+  type PlatformKey,
+  parsePlatformKey,
+  platformKey,
+  platformKeys,
+} from '../../shared/platform'
 import { db } from '../platform/db'
 import { isUniqueViolation } from '../platform/db/errors'
 import { agent, liveStates, runner } from '../platform/db/schema'
+import {
+  containing,
+  filterText,
+  type ListOptions,
+  pageWindow,
+  sortBy,
+} from '../platform/pagination'
 import {
   AgentBusyError,
   AgentNameTakenError,
@@ -55,15 +80,81 @@ const running = sql<number>`(
   and ${inArray(runner.state, liveStates)}
 )`
 
+const sorts: Record<AgentSort, SQL | AnyColumn> = {
+  name: agent.name,
+  platform: sql`(${agent.os}, ${agent.arch})`,
+  running,
+  version: agent.version,
+  lastSeenAt: agent.lastSeenAt,
+  createdAt: agent.createdAt,
+}
+
+const onPlatform = (keys: PlatformKey[]) =>
+  or(
+    ...keys.map((key) => {
+      const { os, arch } = parsePlatformKey(key)
+      return and(eq(agent.os, os), eq(agent.arch, arch))
+    }),
+  )
+
+// Agents whose name, version, labels or platform (as the console shows it,
+// e.g. "macOS ARM64") contain `text`.
+const matching = (text: string) => {
+  const pattern = containing(text)
+  const needle = text.toLowerCase()
+  const platforms = platformKeys.filter((key) =>
+    formatPlatform(parsePlatformKey(key)).toLowerCase().includes(needle),
+  )
+  return or(
+    ilike(agent.name, pattern),
+    ilike(agent.version, pattern),
+    ilike(sql`array_to_string(${agent.labels}, ' ')`, pattern),
+    platforms.length > 0 ? onPlatform(platforms) : undefined,
+  )
+}
+
 // Expected failures are returned rather than thrown, so the controllers
 // return them as is and they're part of the routes' types.
 export const agentsService = {
-  list: (organizationId: string) =>
-    db
-      .select({ ...publicColumns, running })
-      .from(agent)
-      .where(eq(agent.organizationId, organizationId))
-      .orderBy(desc(agent.createdAt)),
+  // A page of the organization's agents, newest first unless sorted
+  // otherwise: only those on one of `platforms`, and whose name, platform,
+  // version or labels contain the filter text. Also lists the platforms the
+  // organization's agents are on, for the platform filter.
+  async list(
+    organizationId: string,
+    {
+      platforms,
+      sort = 'createdAt',
+      dir = 'desc',
+      ...options
+    }: ListOptions<AgentSort> & { platforms?: PlatformKey[] } = {},
+  ) {
+    const scope = eq(agent.organizationId, organizationId)
+    const text = filterText(options.q)
+    const where = and(
+      scope,
+      platforms?.length ? onPlatform(platforms) : undefined,
+      text ? matching(text) : undefined,
+    )
+    const { limit, offset } = pageWindow(options)
+
+    const [items, total, present] = await Promise.all([
+      db
+        .select({ ...publicColumns, running })
+        .from(agent)
+        .where(where)
+        .orderBy(...sortBy(sorts[sort], dir, agent.id))
+        .limit(limit)
+        .offset(offset),
+      db.$count(agent, where),
+      db
+        .selectDistinct({ os: agent.os, arch: agent.arch })
+        .from(agent)
+        .where(scope)
+        .orderBy(agent.os, agent.arch),
+    ])
+    return { items, total, platforms: present.map(platformKey) }
+  },
 
   // Returns the plaintext token: this is the only time it's available.
   async create(input: {

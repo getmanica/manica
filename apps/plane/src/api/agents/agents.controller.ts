@@ -1,7 +1,9 @@
 import { Elysia, t } from 'elysia'
 import { MAX_CUSTOM_LABELS, MAX_LABEL_LENGTH } from '../../shared/labels'
-import { agentArches, agentOses } from '../../shared/platform'
+import { agentSorts } from '../../shared/pagination'
+import { agentArches, agentOses, platformKeys } from '../../shared/platform'
 import { authMacro, type Permissions } from '../auth/session'
+import { listQuery } from '../platform/pagination'
 import { agentsService } from './agents.service'
 
 // Requires a non-blank character: the name is stored trimmed.
@@ -24,8 +26,18 @@ const manage: Permissions = { organization: ['update'] }
 
 export const agentsController = new Elysia({ prefix: '/agents' })
   .use(authMacro)
-  .get('/', { organization: true }, ({ organizationId }) =>
-    agentsService.list(organizationId),
+  .get(
+    '/',
+    {
+      organization: true,
+      query: t.Object({
+        ...listQuery(agentSorts),
+        // Platforms to keep; none keeps all.
+        platform: t.Optional(t.Array(t.UnionEnum(platformKeys))),
+      }),
+    },
+    ({ organizationId, query: { platform, ...options } }) =>
+      agentsService.list(organizationId, { ...options, platforms: platform }),
   )
   .post(
     '/',

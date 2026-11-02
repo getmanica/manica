@@ -1,4 +1,11 @@
+import {
+  commonOutcomes,
+  jobOutcome,
+  jobOutcomeLabel,
+} from '@shared/job-outcomes'
 import { type JobRange, jobRanges } from '@shared/job-ranges'
+import type { JobSort } from '@shared/pagination'
+import { useDebouncedValue } from '@tanstack/react-pacer'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { ListChecksIcon } from 'lucide-react'
@@ -12,10 +19,7 @@ import { TableFilter } from '@/components/table-filter'
 import { TableOptions } from '@/components/table-options'
 import { JobActions } from '@/features/jobs/job-actions'
 import {
-  commonOutcomes,
   type Job,
-  jobMatches,
-  jobOutcome,
   jobsQuery,
   type OutcomeTone,
   outcomeTone,
@@ -26,9 +30,6 @@ import { formatLastSeen } from '@/lib/format'
 const route = getRouteApi('/_signedIn/jobs')
 
 const column = createDataTableColumnHelper<Job>()
-
-const time = (date: Date | string | null) =>
-  date ? new Date(date).getTime() : Number.NEGATIVE_INFINITY
 
 const toneClasses: Record<OutcomeTone, { dot: string; pill: string }> = {
   pending: {
@@ -64,7 +65,7 @@ const Outcome = ({ job }: { job: Job }) => {
       <span
         className={`rounded-full px-2.5 py-0.5 font-medium text-xs ${tone.pill}`}
       >
-        {jobOutcome(job)}
+        {jobOutcomeLabel(jobOutcome(job))}
       </span>
     </span>
   )
@@ -126,8 +127,7 @@ const columns = column.columns([
         </div>
       ),
   }),
-  column.accessor((job) => time(job.queuedAt), {
-    id: 'queuedAt',
+  column.accessor('queuedAt', {
     header: 'Queued',
     sortDescFirst: true,
     cell: ({ row }) => (
@@ -182,28 +182,44 @@ const JobList = ({
   organizationId: string | undefined
   range: JobRange
 }) => {
-  const query = useQuery(jobsQuery(organizationId, range))
-  const jobs = query.data
   const current = route.useSearch()
-  const { q: text, status: statuses, hide: hidden } = current
+  const { q: text, status: statuses, hide: hidden, page, size } = current
   const navigate = route.useNavigate()
-  // Replaces the history entry rather than adding one per keystroke.
+  // Replaces the history entry rather than adding one per keystroke. Any
+  // change but the page or the columns starts over from the first page.
   const update = (search: Partial<typeof current>) =>
-    void navigate({ search: (prev) => ({ ...prev, ...search }), replace: true })
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...(Object.keys(search).some((key) => key !== 'page' && key !== 'hide')
+          ? { page: 1 }
+          : {}),
+        ...search,
+      }),
+      replace: true,
+    })
+
+  // The API is asked once typing pauses, not for every keystroke.
+  const [q] = useDebouncedValue(text, { wait: 250 })
+  const query = useQuery(
+    jobsQuery(organizationId, {
+      range,
+      q: q || undefined,
+      status: statuses,
+      page,
+      size,
+      sort: current.sort,
+      dir: current.dir,
+    }),
+  )
+  const list = query.data
 
   const outcomes = useMemo(
-    () => [...new Set([...commonOutcomes, ...(jobs ?? []).map(jobOutcome)])],
-    [jobs],
-  )
-
-  const shown = useMemo(
     () =>
-      (jobs ?? []).filter(
-        (job) =>
-          jobMatches(job, text) &&
-          (statuses.length === 0 || statuses.includes(jobOutcome(job))),
-      ),
-    [jobs, text, statuses],
+      [
+        ...new Set([...commonOutcomes, ...(list?.outcomes ?? []), ...statuses]),
+      ].map((value) => ({ value, label: jobOutcomeLabel(value) })),
+    [list?.outcomes, statuses],
   )
 
   const columnVisibility = useMemo(
@@ -211,18 +227,30 @@ const JobList = ({
     [hidden],
   )
 
+  const filtered = text.trim() !== '' || statuses.length > 0
+
   return (
     <DataTable
       columns={columns}
-      data={shown}
+      data={list?.items ?? []}
       getRowId={(job) => job.id}
-      initialSorting={[{ id: 'queuedAt', desc: true }]}
+      sorting={{ id: current.sort, desc: current.dir === 'desc' }}
+      onSortingChange={({ id, desc }) =>
+        update({ sort: id as JobSort, dir: desc ? 'desc' : 'asc' })
+      }
+      pagination={{
+        page,
+        size,
+        total: list?.total,
+        onPageChange: (page) => update({ page }),
+        onSizeChange: (size) => update({ size }),
+      }}
       columnVisibility={columnVisibility}
       loading={query.isPending}
-      dimmed={query.isPlaceholderData}
+      dimmed={query.isPlaceholderData || q !== text}
       error={
         query.isError &&
-        !jobs && (
+        !list && (
           <LoadError
             title="Couldn't load jobs"
             error={query.error}
@@ -250,13 +278,13 @@ const JobList = ({
         </>
       }
       empty={
-        jobs?.length === 0 ? (
-          <NoJobs range={range} />
-        ) : (
+        filtered ? (
           <Empty
             title="No matching jobs"
             detail="Try another filter or status."
           />
+        ) : (
+          <NoJobs range={range} />
         )
       }
     />

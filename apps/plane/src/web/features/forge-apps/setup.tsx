@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { forgeAppsQuery, forgeLabels } from '@/features/forge-apps/forge-apps'
+import { forgeAppQuery, forgeLabels } from '@/features/forge-apps/forge-apps'
 import { authClient } from '@/lib/auth'
 
 const successRoute = getRouteApi('/_signedIn/forge-apps/setup/success')
@@ -23,11 +23,11 @@ const errorRoute = getRouteApi('/_signedIn/forge-apps/setup/error')
 export const ForgeAppSetupSuccess = () => {
   const { app: appId } = successRoute.useSearch()
   const { data: organization, isPending } = authClient.useActiveOrganization()
-  const query = useQuery(forgeAppsQuery(organization?.id))
-  const app = query.data?.find(({ id }) => id === appId)
+  const query = useQuery(forgeAppQuery(organization?.id, appId))
+  const app = query.data
   // Until the app arrives its name and install link are unknown: hold their
   // place. If it can't be found, fall back to generic copy.
-  const loading = isPending || (!!organization && query.isPending)
+  const loading = isPending || (!!organization && !!appId && query.isPending)
 
   return (
     <Page title="Forge apps">

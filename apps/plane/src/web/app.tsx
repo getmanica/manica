@@ -1,5 +1,14 @@
 import { jobRanges, overviewRanges } from '@shared/job-ranges'
 import {
+  agentSorts,
+  defaultPageSize,
+  forgeAppSorts,
+  jobSorts,
+  pageSizes,
+  sortDirections,
+} from '@shared/pagination'
+import { platformKeys } from '@shared/platform'
+import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
@@ -34,17 +43,37 @@ const text = z.string().default('').catch('')
 const list = z.array(z.string()).default([]).catch([])
 const optional = z.string().optional().catch(undefined)
 
+// A paged table's page, page size and sort, newest first by default.
+const paged = <const Sorts extends readonly [string, ...string[]]>(
+  sorts: Sorts,
+  sort: Sorts[number],
+) => ({
+  page: z.number().int().min(1).default(1).catch(1),
+  size: z.literal(pageSizes).default(defaultPageSize).catch(defaultPageSize),
+  sort: z.enum(sorts).default(sort).catch(sort),
+  dir: z.enum(sortDirections).default('desc').catch('desc'),
+})
+
 const overviewSearch = z.object({
   range: z.enum(overviewRanges).default('24h').catch('24h'),
 })
 const jobsSearch = z.object({
+  ...paged(jobSorts, 'queuedAt'),
   q: text,
   status: list,
   hide: list,
   range: z.enum(jobRanges).default('24h').catch('24h'),
 })
-const agentsSearch = z.object({ q: text, platform: list, hide: list })
-const forgeAppsSearch = z.object({ q: text })
+const agentsSearch = z.object({
+  ...paged(agentSorts, 'createdAt'),
+  q: text,
+  platform: z.array(z.enum(platformKeys)).default([]).catch([]),
+  hide: list,
+})
+const forgeAppsSearch = z.object({
+  ...paged(forgeAppSorts, 'createdAt'),
+  q: text,
+})
 
 const root = createRootRouteWithContext<{ session: Session | null }>()({
   component: Outlet,

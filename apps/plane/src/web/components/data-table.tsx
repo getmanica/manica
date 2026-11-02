@@ -1,19 +1,17 @@
 import {
   type ColumnDef,
+  type ColumnSort,
   type ColumnVisibilityState,
   columnVisibilityFeature,
   createColumnHelper,
-  createSortedRowModel,
   type RowData,
   rowSortingFeature,
-  type SortingState,
-  sortFn_alphanumeric,
-  sortFn_basic,
   tableFeatures,
   useTable,
 } from '@tanstack/react-table'
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { type Pagination, TablePagination } from '@/components/table-pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -24,14 +22,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-// Shared by every data table: client-side sorting by clicking a header, and
-// columns the page can hide.
-const features = tableFeatures({
-  rowSortingFeature,
-  columnVisibilityFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
-})
+// Shared by every data table: sorting by clicking a header, and columns the
+// page can hide. The API sorts and pages the rows: the table shows them in the
+// order they arrive.
+const features = tableFeatures({ rowSortingFeature, columnVisibilityFeature })
 
 type Features = typeof features
 
@@ -49,7 +43,9 @@ export const DataTable = <Row extends RowData>({
   columns,
   data,
   getRowId,
-  initialSorting,
+  sorting,
+  onSortingChange,
+  pagination,
   empty,
   columnVisibility,
   toolbar,
@@ -62,7 +58,12 @@ export const DataTable = <Row extends RowData>({
   columns: ColumnDef<Features, Row, any>[]
   data: Row[]
   getRowId: (row: Row) => string
-  initialSorting?: SortingState
+  // The column the rows are sorted by, by id, and which way. A header
+  // toggles between ways, and never back to unsorted.
+  sorting: ColumnSort
+  onSortingChange: (sorting: ColumnSort) => void
+  // Where the rows sit among all that match, shown below them.
+  pagination?: Pagination
   // Shown in place of the rows when there are none.
   empty: ReactNode
   // Columns by id, hidden when false.
@@ -81,8 +82,18 @@ export const DataTable = <Row extends RowData>({
     columns,
     data,
     getRowId,
-    initialState: { sorting: initialSorting ?? [] },
-    state: columnVisibility ? { columnVisibility } : undefined,
+    manualSorting: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
+    state: {
+      sorting: [sorting],
+      ...(columnVisibility && { columnVisibility }),
+    },
+    onSortingChange: (updater) => {
+      const [next] =
+        typeof updater === 'function' ? updater([sorting]) : updater
+      if (next) onSortingChange(next)
+    },
   })
   const rows = table.getRowModel().rows
   const columnCount = table.getVisibleLeafColumns().length
@@ -174,11 +185,18 @@ export const DataTable = <Row extends RowData>({
     </div>
   )
 
-  if (!toolbar) return grid
+  const footer = pagination && (
+    <TablePagination {...pagination} settled={!loading && !dimmed} />
+  )
+
+  if (!toolbar && !footer) return grid
   return (
     <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3">
-      <div className="flex items-center justify-end gap-2">{toolbar}</div>
+      {toolbar && (
+        <div className="flex items-center justify-end gap-2">{toolbar}</div>
+      )}
       {grid}
+      {footer}
     </div>
   )
 }

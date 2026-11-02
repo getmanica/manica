@@ -10,41 +10,39 @@ export {
   MAX_LABEL_LENGTH,
 } from '@shared/labels'
 
-export type Agent = Treaty.Data<(typeof api)['agents']['get']>[number]
+export {
+  archLabels,
+  formatPlatform,
+  osLabels,
+  parsePlatformKey,
+} from '@shared/platform'
 
-export const osLabels: Record<Agent['os'], string> = {
-  linux: 'Linux',
-  darwin: 'macOS',
-  windows: 'Windows',
-}
+export type AgentList = Treaty.Data<(typeof api)['agents']['get']>
+export type Agent = AgentList['items'][number]
+export type AgentListQuery = NonNullable<
+  Parameters<(typeof api)['agents']['get']>[0]
+>['query']
 
-export const archLabels: Record<Agent['arch'], string> = {
-  arm64: 'ARM64',
-  x86_64: 'x86-64',
-}
+// Every list of the active organization's agents, to refresh them all after
+// a change. The API reads the organization from the session; it's in the key
+// so each one keeps its own cache.
+export const agentsKey = (organizationId: string | undefined) => [
+  'agents',
+  organizationId,
+]
 
-// e.g. "macOS ARM64".
-export const formatPlatform = ({ os, arch }: Pick<Agent, 'os' | 'arch'>) =>
-  `${osLabels[os]} ${archLabels[arch]}`
-
-// Whether an agent matches the filter box: its name, platform, labels or
-// version contain the text, ignoring case.
-export const agentMatches = (agent: Agent, text: string) => {
-  const needle = text.trim().toLowerCase()
-  if (!needle) return true
-  return [
-    agent.name,
-    formatPlatform(agent),
-    agent.version ?? '',
-    ...agent.labels,
-  ].some((value) => value.toLowerCase().includes(needle))
-}
-
-// The active organization's agents. The API reads the organization from the
-// session; it's in the key so each one keeps its own cache.
-export const agentsQuery = (organizationId: string | undefined) =>
+// A page of the active organization's agents. Another page, sort or filter
+// keeps showing the previous one's agents until its own arrive.
+export const agentsQuery = (
+  organizationId: string | undefined,
+  query: AgentListQuery,
+) =>
   queryOptions({
-    queryKey: ['agents', organizationId],
-    queryFn: ({ signal }) => api.agents.get({ fetch: { signal } }).then(unwrap),
+    queryKey: [...agentsKey(organizationId), query],
+    queryFn: ({ signal }) =>
+      api.agents.get({ query, fetch: { signal } }).then(unwrap),
     enabled: organizationId !== undefined,
+    // Never another organization's: keys put its id second.
+    placeholderData: (previous, query) =>
+      query?.queryKey[1] === organizationId ? previous : undefined,
   })

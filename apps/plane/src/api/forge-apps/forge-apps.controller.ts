@@ -1,7 +1,9 @@
 import { Elysia, HTTPError, t } from 'elysia'
+import { forgeAppSorts } from '../../shared/pagination'
 import { authMacro, requireSession } from '../auth/session'
 import { forgeKinds } from '../platform/db/schema'
 import { env } from '../platform/env'
+import { listQuery } from '../platform/pagination'
 import { ForgeAppSetupCallbackInvalidError } from './errors'
 import { forgeAppsService } from './forge-apps.service'
 
@@ -13,8 +15,10 @@ const setupErrorUrl = (code: string) =>
 
 export const forgeAppsController = new Elysia({ prefix: '/forge-apps' })
   .use(authMacro)
-  .get('/', { organization: true }, ({ organizationId }) =>
-    forgeAppsService.list(organizationId),
+  .get(
+    '/',
+    { organization: true, query: t.Object(listQuery(forgeAppSorts)) },
+    ({ organizationId, query }) => forgeAppsService.list(organizationId, query),
   )
   // Returns where to send the browser to register the app on the forge.
   .post(
@@ -61,4 +65,7 @@ export const forgeAppsController = new Elysia({ prefix: '/forge-apps' })
         return redirect(setupErrorUrl('INTERNAL'), 303)
       }
     },
+  )
+  .get('/:id', { organization: true }, ({ organizationId, params: { id } }) =>
+    forgeAppsService.get(organizationId, id),
   )

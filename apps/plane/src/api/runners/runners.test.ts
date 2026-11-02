@@ -448,13 +448,15 @@ test('an agent with runners can’t be deleted', async () => {
 test('agents list how many slots they use, jobs which agent ran them', async () => {
   const externalId = await queue()
   const [started] = (await poll()).start
-  const [listed] = (await agentsService.list(app.organizationId)).filter(
+  const [listed] = (await agentsService.list(app.organizationId)).items.filter(
     ({ id }) => id === mac.id,
   )
   expect(listed).toMatchObject({ running: 1, slots: 1 })
 
   const { externalRunnerId } = await storedRunner(started?.id ?? '')
   await record({ externalId, status: 'in_progress', externalRunnerId })
-  const [ran] = await jobsService.list(app.organizationId)
+  const {
+    items: [ran],
+  } = await jobsService.list(app.organizationId)
   expect(ran?.agentName).toBe('studio')
 })

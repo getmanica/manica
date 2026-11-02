@@ -1,3 +1,6 @@
+import type { AgentSort } from '@shared/pagination'
+import { type PlatformKey, platformKey } from '@shared/platform'
+import { useDebouncedValue } from '@tanstack/react-pacer'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { PlusIcon, ServerIcon } from 'lucide-react'
@@ -13,9 +16,10 @@ import { type AgentAction, AgentActions } from '@/features/agents/agent-actions'
 import { AgentFormDialog } from '@/features/agents/agent-form-dialog'
 import {
   type Agent,
-  agentMatches,
+  agentsKey,
   agentsQuery,
   formatPlatform,
+  parsePlatformKey,
 } from '@/features/agents/agents'
 import { DeleteAgentDialog } from '@/features/agents/delete-agent-dialog'
 import { RegenerateTokenDialog } from '@/features/agents/regenerate-token-dialog'
@@ -25,11 +29,6 @@ import { formatDate, formatLastSeen } from '@/lib/format'
 const route = getRouteApi('/_signedIn/agents')
 
 const column = createDataTableColumnHelper<Agent>()
-
-// Dates arrive as ISO strings or Dates; sort them chronologically, with
-// never-seen agents last.
-const time = (date: Date | string | null) =>
-  date ? new Date(date).getTime() : Number.NEGATIVE_INFINITY
 
 // Custom labels only: the built-in ones are the same for every agent on a
 // platform, and listed in the edit dialog.
@@ -49,8 +48,9 @@ const dataColumns = [
     enableHiding: false,
     cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
   }),
-  column.accessor(formatPlatform, {
+  column.accessor(platformKey, {
     id: 'platform',
+    cell: ({ row }) => formatPlatform(row.original),
     header: 'Platform',
   }),
   column.accessor('running', {
@@ -80,8 +80,7 @@ const dataColumns = [
       )
     },
   }),
-  column.accessor((agent) => time(agent.lastSeenAt), {
-    id: 'lastSeenAt',
+  column.accessor('lastSeenAt', {
     header: 'Last seen',
     sortDescFirst: true,
     cell: ({ row }) => (
@@ -90,8 +89,7 @@ const dataColumns = [
       </span>
     ),
   }),
-  column.accessor((agent) => time(agent.createdAt), {
-    id: 'createdAt',
+  column.accessor('createdAt', {
     header: 'Created',
     sortDescFirst: true,
     cell: ({ row }) => (
@@ -125,23 +123,43 @@ const AgentList = ({
   organizationId: string | undefined
 }) => {
   const queryClient = useQueryClient()
-  const query = useQuery(agentsQuery(organizationId))
-  const agents = query.data
   // The open dialog, if any. The agent it acts on outlives it, so the dialog
   // keeps its content while it animates closed.
   const [dialog, setDialog] = useState<'create' | AgentAction | null>(null)
   const [target, setTarget] = useState<Agent>()
   const current = route.useSearch()
-  const { q: text, platform: platforms, hide: hidden } = current
+  const { q: text, platform: platforms, hide: hidden, page, size } = current
   const navigate = route.useNavigate()
-  // Replaces the history entry rather than adding one per keystroke.
+  // Replaces the history entry rather than adding one per keystroke. Any
+  // change but the page or the columns starts over from the first page.
   const update = (search: Partial<typeof current>) =>
-    void navigate({ search: (prev) => ({ ...prev, ...search }), replace: true })
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...(Object.keys(search).some((key) => key !== 'page' && key !== 'hide')
+          ? { page: 1 }
+          : {}),
+        ...search,
+      }),
+      replace: true,
+    })
+
+  // The API is asked once typing pauses, not for every keystroke.
+  const [q] = useDebouncedValue(text, { wait: 250 })
+  const query = useQuery(
+    agentsQuery(organizationId, {
+      q: q || undefined,
+      platform: platforms,
+      page,
+      size,
+      sort: current.sort,
+      dir: current.dir,
+    }),
+  )
+  const list = query.data
 
   const refresh = () =>
-    void queryClient.invalidateQueries({
-      queryKey: agentsQuery(organizationId).queryKey,
-    })
+    void queryClient.invalidateQueries({ queryKey: agentsKey(organizationId) })
 
   const columns = useMemo(
     () =>
@@ -168,19 +186,17 @@ const AgentList = ({
   )
 
   const platformOptions = useMemo(
-    () => [...new Set((agents ?? []).map(formatPlatform))].sort(),
-    [agents],
+    () =>
+      [...new Set([...(list?.platforms ?? []), ...platforms])]
+        .map((value) => ({
+          value,
+          label: formatPlatform(parsePlatformKey(value)),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [list?.platforms, platforms],
   )
 
-  const shown = useMemo(
-    () =>
-      (agents ?? []).filter(
-        (agent) =>
-          agentMatches(agent, text) &&
-          (platforms.length === 0 || platforms.includes(formatPlatform(agent))),
-      ),
-    [agents, text, platforms],
-  )
+  const filtered = text.trim() !== '' || platforms.length > 0
 
   const columnVisibility = useMemo(
     () => Object.fromEntries(hidden.map((id) => [id, false])),
@@ -196,14 +212,25 @@ const AgentList = ({
     <>
       <DataTable
         columns={columns}
-        data={shown}
+        data={list?.items ?? []}
         getRowId={(agent) => agent.id}
-        initialSorting={[{ id: 'createdAt', desc: true }]}
+        sorting={{ id: current.sort, desc: current.dir === 'desc' }}
+        onSortingChange={({ id, desc }) =>
+          update({ sort: id as AgentSort, dir: desc ? 'desc' : 'asc' })
+        }
+        pagination={{
+          page,
+          size,
+          total: list?.total,
+          onPageChange: (page) => update({ page }),
+          onSizeChange: (size) => update({ size }),
+        }}
         columnVisibility={columnVisibility}
         loading={query.isPending}
+        dimmed={query.isPlaceholderData || q !== text}
         error={
           query.isError &&
-          !agents && (
+          !list && (
             <LoadError
               title="Couldn't load agents"
               error={query.error}
@@ -223,7 +250,9 @@ const AgentList = ({
               facet="Platform"
               options={platformOptions}
               selected={platforms}
-              onSelectedChange={(platform) => update({ platform })}
+              onSelectedChange={(platform) =>
+                update({ platform: platform as PlatformKey[] })
+              }
               columns={hideableColumns}
               hidden={hidden}
               onHiddenChange={(hide) => update({ hide })}
@@ -235,15 +264,15 @@ const AgentList = ({
           </>
         }
         empty={
-          agents?.length === 0 ? (
-            <Empty
-              title="No agents yet"
-              detail="Create one, then run it on a machine to start running CI jobs."
-            />
-          ) : (
+          filtered ? (
             <Empty
               title="No matching agents"
               detail="Try another filter or platform."
+            />
+          ) : (
+            <Empty
+              title="No agents yet"
+              detail="Create one, then run it on a machine to start running CI jobs."
             />
           )
         }

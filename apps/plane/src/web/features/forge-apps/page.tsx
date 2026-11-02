@@ -1,7 +1,9 @@
+import type { ForgeAppSort } from '@shared/pagination'
+import { useDebouncedValue } from '@tanstack/react-pacer'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { ExternalLinkIcon, PlugIcon, PlusIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
 import { Page } from '@/components/layout'
 import { LoadError } from '@/components/loading'
@@ -21,9 +23,6 @@ import { formatDate, formatLastSeen, formatTime } from '@/lib/format'
 const route = getRouteApi('/_signedIn/forge-apps')
 
 const column = createDataTableColumnHelper<ForgeApp>()
-
-const time = (date: Date | string | null) =>
-  date ? new Date(date).getTime() : Number.NEGATIVE_INFINITY
 
 // Whether the forge is reaching the app. An app that never got a delivery
 // is usually not installed on any repository yet.
@@ -75,14 +74,13 @@ const columns = column.columns([
   column.accessor('owner', {
     header: 'Account',
   }),
-  column.accessor((app) => time(app.lastDeliveryAt), {
+  column.accessor('lastDeliveryAt', {
     id: 'status',
     header: 'Status',
     sortDescFirst: true,
     cell: ({ row }) => <Status app={row.original} />,
   }),
-  column.accessor((app) => time(app.createdAt), {
-    id: 'createdAt',
+  column.accessor('createdAt', {
     header: 'Added',
     sortDescFirst: true,
     cell: ({ row: { original: app } }) => (
@@ -114,44 +112,63 @@ const Empty = ({ title, detail }: { title: string; detail: string }) => (
   </div>
 )
 
-const matches = (app: ForgeApp, text: string) => {
-  const needle = text.trim().toLowerCase()
-  return (
-    !needle ||
-    [app.name, app.slug, app.owner, forgeLabels[app.forge]].some((value) =>
-      value.toLowerCase().includes(needle),
-    )
-  )
-}
-
 const ForgeAppList = ({
   organizationId,
 }: {
   organizationId: string | undefined
 }) => {
-  const query = useQuery(forgeAppsQuery(organizationId))
-  const apps = query.data
-  const { q: text } = route.useSearch()
+  const current = route.useSearch()
+  const { q: text, page, size } = current
   const navigate = route.useNavigate()
-  // Replaces the history entry rather than adding one per keystroke.
-  const setText = (q: string) =>
-    void navigate({ search: (prev) => ({ ...prev, q }), replace: true })
+  // Replaces the history entry rather than adding one per keystroke. Any
+  // change but the page starts over from the first page.
+  const update = (search: Partial<typeof current>) =>
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...(Object.keys(search).some((key) => key !== 'page')
+          ? { page: 1 }
+          : {}),
+        ...search,
+      }),
+      replace: true,
+    })
 
-  const shown = useMemo(
-    () => (apps ?? []).filter((app) => matches(app, text)),
-    [apps, text],
+  // The API is asked once typing pauses, not for every keystroke.
+  const [q] = useDebouncedValue(text, { wait: 250 })
+  const query = useQuery(
+    forgeAppsQuery(organizationId, {
+      q: q || undefined,
+      page,
+      size,
+      sort: current.sort,
+      dir: current.dir,
+    }),
   )
+  const list = query.data
+  const filtered = text.trim() !== ''
 
   return (
     <DataTable
       columns={columns}
-      data={shown}
+      data={list?.items ?? []}
       getRowId={(app) => app.id}
-      initialSorting={[{ id: 'createdAt', desc: true }]}
+      sorting={{ id: current.sort, desc: current.dir === 'desc' }}
+      onSortingChange={({ id, desc }) =>
+        update({ sort: id as ForgeAppSort, dir: desc ? 'desc' : 'asc' })
+      }
+      pagination={{
+        page,
+        size,
+        total: list?.total,
+        onPageChange: (page) => update({ page }),
+        onSizeChange: (size) => update({ size }),
+      }}
       loading={query.isPending}
+      dimmed={query.isPlaceholderData || q !== text}
       error={
         query.isError &&
-        !apps && (
+        !list && (
           <LoadError
             title="Couldn't load forge apps"
             error={query.error}
@@ -165,25 +182,25 @@ const ForgeAppList = ({
           <div className="mr-auto w-full max-w-xs">
             <TableFilter
               value={text}
-              onChange={setText}
+              onChange={(q) => update({ q })}
               placeholder="Filter apps…"
             />
           </div>
-          {apps && (
+          {list && !filtered && (
             <span className="shrink-0 px-2 text-muted-foreground text-sm">
-              {apps.length} {apps.length === 1 ? 'app' : 'apps'} connected
+              {list.total} {list.total === 1 ? 'app' : 'apps'} connected
             </span>
           )}
         </>
       }
       empty={
-        apps?.length === 0 ? (
+        filtered ? (
+          <Empty title="No matching apps" detail="Try another filter." />
+        ) : (
           <Empty
             title="No forge apps yet"
             detail="Connect GitHub to start receiving CI jobs."
           />
-        ) : (
-          <Empty title="No matching apps" detail="Try another filter." />
         )
       }
     />

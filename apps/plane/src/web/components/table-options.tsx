@@ -26,7 +26,7 @@ export const TableOptions = ({
   onHiddenChange,
 }: {
   facet: string
-  options: string[]
+  options: { value: string; label: string }[]
   selected: string[]
   onSelectedChange: (selected: string[]) => void
   // The columns that can be hidden, by id.
@@ -54,15 +54,15 @@ export const TableOptions = ({
     <DropdownMenuContent align="end" className="min-w-48">
       <DropdownMenuGroup>
         <DropdownMenuLabel>{facet}</DropdownMenuLabel>
-        {options.map((option) => (
+        {options.map(({ value, label }) => (
           <DropdownMenuCheckboxItem
-            key={option}
-            checked={selected.includes(option)}
+            key={value}
+            checked={selected.includes(value)}
             onCheckedChange={(on) =>
-              onSelectedChange(toggle(selected, option, on))
+              onSelectedChange(toggle(selected, value, on))
             }
           >
-            {option}
+            {label}
           </DropdownMenuCheckboxItem>
         ))}
         {selected.length > 0 && (
