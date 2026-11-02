@@ -70,7 +70,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: trigger deploy
-        run: curl --fail-with-body --silent --show-error --request GET "$DEPLOY_WEBHOOK" --header "Authorization: Bearer $DEPLOY_TOKEN"
+        run: |
+          curl --fail-with-body --silent --show-error --request GET "$DEPLOY_WEBHOOK" \
+            --header "Authorization: Bearer $DEPLOY_TOKEN"
         env:
           DEPLOY_WEBHOOK: ${{ secrets.DEPLOY_WEBHOOK }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
