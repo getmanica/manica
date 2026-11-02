@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, CircleAlertIcon, CircleCheckIcon } from 'lucide-react'
-import { Link, useSearchParams } from 'wouter'
 import { Page } from '@/components/layout'
 import { buttonVariants } from '@/components/ui/button'
 import {
@@ -15,11 +15,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { forgeAppsQuery, forgeLabels } from '@/features/forge-apps/forge-apps'
 import { authClient } from '@/lib/auth'
 
+const successRoute = getRouteApi('/_signedIn/forge-apps/setup/success')
+const errorRoute = getRouteApi('/_signedIn/forge-apps/setup/error')
+
 // Landing pages for `GET /api/forge-apps/setup/callback`.
 
 export const ForgeAppSetupSuccess = () => {
-  const [params] = useSearchParams()
-  const appId = params.get('app')
+  const { app: appId } = successRoute.useSearch()
   const { data: organization, isPending } = authClient.useActiveOrganization()
   const query = useQuery(forgeAppsQuery(organization?.id))
   const app = query.data?.find(({ id }) => id === appId)
@@ -63,7 +65,7 @@ export const ForgeAppSetupSuccess = () => {
             )
           )}
           <Link
-            href="/forge-apps"
+            to="/forge-apps"
             className={buttonVariants({ variant: 'ghost' })}
           >
             Back to forge apps
@@ -102,8 +104,7 @@ const fallbackError = {
 }
 
 export const ForgeAppSetupError = () => {
-  const [params] = useSearchParams()
-  const code = params.get('code')
+  const { code } = errorRoute.useSearch()
   const { title, description } = (code && errorMessages[code]) || fallbackError
 
   return (
@@ -120,7 +121,7 @@ export const ForgeAppSetupError = () => {
           </CardContent>
         )}
         <CardFooter>
-          <Link href="/forge-apps" className={buttonVariants()}>
+          <Link to="/forge-apps" className={buttonVariants()}>
             <ArrowLeftIcon data-icon="inline-start" />
             Back to forge apps
           </Link>

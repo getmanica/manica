@@ -1,18 +1,19 @@
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { ArrowRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
-import { Link, useSearchParams } from 'wouter'
 import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
 import { OtherSignIn } from '@/features/auth/other-sign-in'
 import { authClient } from '@/lib/auth'
 
+const route = getRouteApi('/_signedOut/login')
+
 // Its own form, apart from signing up, so password managers see a sign-in
 // form with a current password to fill.
 export const SignIn = () => {
   // Set by better-auth when signing in with GitHub fails.
-  const [params] = useSearchParams()
-  const failed = params.get('error')
+  const { error: failed } = route.useSearch()
 
   // Offers saved passkeys in the email field's autofill. Signing in this way
   // updates the session, which takes the app past this page.
@@ -97,7 +98,7 @@ export const SignIn = () => {
         <p className="text-center text-muted-foreground text-sm">
           Don't have an account?{' '}
           <Link
-            href="/signup"
+            to="/signup"
             className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
           >
             Sign up

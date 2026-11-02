@@ -1,6 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { ChevronsUpDownIcon, LogOutIcon, UserIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import { Link } from 'wouter'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -73,7 +73,7 @@ export const UserMenu = () => {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/profile" />}>
+            <DropdownMenuItem render={<Link to="/profile" />}>
               <UserIcon />
               Profile
             </DropdownMenuItem>

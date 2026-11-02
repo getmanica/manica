@@ -1,5 +1,5 @@
+import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon } from 'lucide-react'
-import { Link } from 'wouter'
 import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
@@ -98,7 +98,7 @@ export const SignUp = () => {
         <p className="text-center text-muted-foreground text-sm">
           Already have an account?{' '}
           <Link
-            href="/login"
+            to="/login"
             className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
           >
             Sign in

@@ -1,5 +1,6 @@
 import { type JobRange, jobRanges } from '@shared/job-ranges'
 import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { ListChecksIcon } from 'lucide-react'
 import { type ReactNode, useMemo } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
@@ -21,7 +22,8 @@ import {
 } from '@/features/jobs/jobs'
 import { authClient } from '@/lib/auth'
 import { formatLastSeen } from '@/lib/format'
-import { useEnumParam, useListParam, useParam } from '@/lib/search-params'
+
+const route = getRouteApi('/_signedIn/jobs')
 
 const column = createDataTableColumnHelper<Job>()
 
@@ -182,9 +184,12 @@ const JobList = ({
 }) => {
   const query = useQuery(jobsQuery(organizationId, range))
   const jobs = query.data
-  const [text, setText] = useParam('q')
-  const [statuses, setStatuses] = useListParam('status')
-  const [hidden, setHidden] = useListParam('hide')
+  const current = route.useSearch()
+  const { q: text, status: statuses, hide: hidden } = current
+  const navigate = route.useNavigate()
+  // Replaces the history entry rather than adding one per keystroke.
+  const update = (search: Partial<typeof current>) =>
+    void navigate({ search: (prev) => ({ ...prev, ...search }), replace: true })
 
   const outcomes = useMemo(
     () => [...new Set([...commonOutcomes, ...(jobs ?? []).map(jobOutcome)])],
@@ -230,17 +235,17 @@ const JobList = ({
         <>
           <TableFilter
             value={text}
-            onChange={setText}
+            onChange={(q) => update({ q })}
             placeholder="Filter jobs…"
           />
           <TableOptions
             facet="Status"
             options={outcomes}
             selected={statuses}
-            onSelectedChange={setStatuses}
+            onSelectedChange={(status) => update({ status })}
             columns={hideableColumns}
             hidden={hidden}
-            onHiddenChange={setHidden}
+            onHiddenChange={(hide) => update({ hide })}
           />
         </>
       }
@@ -260,7 +265,10 @@ const JobList = ({
 
 export const Jobs = () => {
   const { data: organization, isPending } = authClient.useActiveOrganization()
-  const [range, setRange] = useEnumParam('range', jobRanges, '24h')
+  const { range } = route.useSearch()
+  const navigate = route.useNavigate()
+  const setRange = (range: JobRange) =>
+    void navigate({ search: (prev) => ({ ...prev, range }), replace: true })
 
   return (
     <Page

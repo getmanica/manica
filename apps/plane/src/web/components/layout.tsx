@@ -1,3 +1,4 @@
+import { Link, useMatchRoute } from '@tanstack/react-router'
 import {
   LayoutDashboardIcon,
   ListChecksIcon,
@@ -5,7 +6,6 @@ import {
   ServerIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link, useRoute } from 'wouter'
 import { OrganizationSwitcher } from '@/components/organization-switcher'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -27,22 +27,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { UserMenu } from '@/components/user-menu'
 
 const nav = [
-  { href: '/', label: 'Overview', icon: LayoutDashboardIcon },
-  { href: '/jobs', label: 'Jobs', icon: ListChecksIcon },
-  { href: '/agents', label: 'Agents', icon: ServerIcon },
-  { href: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
-]
+  { to: '/', label: 'Overview', icon: LayoutDashboardIcon },
+  { to: '/jobs', label: 'Jobs', icon: ListChecksIcon },
+  { to: '/agents', label: 'Agents', icon: ServerIcon },
+  { to: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
+] as const
 
-const NavItem = ({ href, label, icon: Icon }: (typeof nav)[number]) => {
+const NavItem = ({ to, label, icon: Icon }: (typeof nav)[number]) => {
   // Nested pages (e.g. `/forge-apps/setup/success`) keep their section active.
-  const [exact] = useRoute(href)
-  const [nested] = useRoute(`${href}/*`)
+  const active = !!useMatchRoute()({ to, fuzzy: to !== '/' })
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={exact || (href !== '/' && nested)}
+        isActive={active}
         tooltip={label}
-        render={<Link href={href} />}
+        render={<Link to={to} />}
       >
         <Icon />
         <span>{label}</span>
@@ -61,7 +60,7 @@ const AppSidebar = () => (
         <SidebarGroupLabel>Platform</SidebarGroupLabel>
         <SidebarMenu>
           {nav.map((item) => (
-            <NavItem key={item.href} {...item} />
+            <NavItem key={item.to} {...item} />
           ))}
         </SidebarMenu>
       </SidebarGroup>

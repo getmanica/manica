@@ -1,6 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { ChevronRightIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { Link } from 'wouter'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   type AgentStatus,
@@ -81,7 +81,7 @@ const Section = ({ children }: { children: ReactNode }) => (
     <div className="flex items-center justify-between">
       <h2 className="font-semibold text-lg">Agents</h2>
       <Link
-        href="/agents"
+        to="/agents"
         className="inline-flex items-center gap-1 font-medium text-sm hover:underline"
       >
         View all
@@ -142,7 +142,7 @@ export const AgentsGlance = ({ agents }: { agents: OverviewAgent[] }) => {
       {agents.length === 0 ? (
         <p className="rounded-2xl border border-dashed px-6 py-10 text-center text-muted-foreground text-sm">
           No agents yet.{' '}
-          <Link href="/agents" className="text-foreground hover:underline">
+          <Link to="/agents" className="text-foreground hover:underline">
             Create one
           </Link>{' '}
           to start running CI jobs.
@@ -179,7 +179,8 @@ export const AgentsGlance = ({ agents }: { agents: OverviewAgent[] }) => {
                 </td>
                 <td className="px-4 py-3">
                   <Link
-                    href={`/agents?q=${encodeURIComponent(agent.name)}`}
+                    to="/agents"
+                    search={{ q: agent.name }}
                     aria-label={`Open ${agent.name}`}
                     className="flex justify-end text-muted-foreground hover:text-foreground"
                   >

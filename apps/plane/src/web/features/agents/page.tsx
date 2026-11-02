@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { PlusIcon, ServerIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
@@ -20,7 +21,8 @@ import { DeleteAgentDialog } from '@/features/agents/delete-agent-dialog'
 import { RegenerateTokenDialog } from '@/features/agents/regenerate-token-dialog'
 import { authClient } from '@/lib/auth'
 import { formatDate, formatLastSeen } from '@/lib/format'
-import { useListParam, useParam } from '@/lib/search-params'
+
+const route = getRouteApi('/_signedIn/agents')
 
 const column = createDataTableColumnHelper<Agent>()
 
@@ -129,9 +131,12 @@ const AgentList = ({
   // keeps its content while it animates closed.
   const [dialog, setDialog] = useState<'create' | AgentAction | null>(null)
   const [target, setTarget] = useState<Agent>()
-  const [text, setText] = useParam('q')
-  const [platforms, setPlatforms] = useListParam('platform')
-  const [hidden, setHidden] = useListParam('hide')
+  const current = route.useSearch()
+  const { q: text, platform: platforms, hide: hidden } = current
+  const navigate = route.useNavigate()
+  // Replaces the history entry rather than adding one per keystroke.
+  const update = (search: Partial<typeof current>) =>
+    void navigate({ search: (prev) => ({ ...prev, ...search }), replace: true })
 
   const refresh = () =>
     void queryClient.invalidateQueries({
@@ -211,17 +216,17 @@ const AgentList = ({
           <>
             <TableFilter
               value={text}
-              onChange={setText}
+              onChange={(q) => update({ q })}
               placeholder="Filter agents…"
             />
             <TableOptions
               facet="Platform"
               options={platformOptions}
               selected={platforms}
-              onSelectedChange={setPlatforms}
+              onSelectedChange={(platform) => update({ platform })}
               columns={hideableColumns}
               hidden={hidden}
-              onHiddenChange={setHidden}
+              onHiddenChange={(hide) => update({ hide })}
             />
             <Button onClick={() => setDialog('create')}>
               <PlusIcon data-icon="inline-start" />

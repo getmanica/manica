@@ -1,42 +1,51 @@
 import {
+  Link,
+  type RegisteredRouter,
+  type ValidateLinkOptions,
+} from '@tanstack/react-router'
+import {
   ArrowDownRightIcon,
   ArrowUpRightIcon,
   ChevronRightIcon,
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link } from 'wouter'
 import { Skeleton } from '@/components/ui/skeleton'
 
-// A headline number, linking to where it comes from.
-export const StatCard = ({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  href,
-}: {
+type StatCardProps<Options = unknown> = {
   icon: LucideIcon
   label: string
   value: ReactNode
   detail: ReactNode
-  href: string
-}) => (
-  <Link
-    href={href}
-    className="group flex items-start gap-4 rounded-2xl border bg-card p-5 transition-colors hover:bg-muted/40"
-  >
-    <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-    <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="font-semibold text-3xl tabular-nums tracking-tight">
-        {value}
-      </span>
-      <span className="text-muted-foreground text-sm">{detail}</span>
-    </div>
-    <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-  </Link>
-)
+  link: ValidateLinkOptions<RegisteredRouter, Options>
+}
+
+// A headline number, linking to where it comes from.
+export function StatCard<Options>(props: StatCardProps<Options>): ReactNode
+export function StatCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  link,
+}: StatCardProps) {
+  return (
+    <Link
+      {...link}
+      className="group flex items-start gap-4 rounded-2xl border bg-card p-5 transition-colors hover:bg-muted/40"
+    >
+      <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-muted-foreground text-sm">{label}</span>
+        <span className="font-semibold text-3xl tabular-nums tracking-tight">
+          {value}
+        </span>
+        <span className="text-muted-foreground text-sm">{detail}</span>
+      </div>
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </Link>
+  )
+}
 
 // A stat card's place while its number loads.
 export const StatCardSkeleton = ({

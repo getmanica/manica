@@ -1,5 +1,6 @@
-import { overviewRanges } from '@shared/job-ranges'
+import { type OverviewRange, overviewRanges } from '@shared/job-ranges'
 import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { BoxIcon, ClockIcon, HourglassIcon, PlayIcon } from 'lucide-react'
 import { Page } from '@/components/layout'
 import { LoadError, Loading } from '@/components/loading'
@@ -24,7 +25,8 @@ import {
   StatCardSkeleton,
 } from '@/features/overview/stat-card'
 import { authClient } from '@/lib/auth'
-import { useEnumParam } from '@/lib/search-params'
+
+const route = getRouteApi('/_signedIn/')
 
 const Stats = ({ overview }: { overview: OverviewData }) => {
   const { current, previous, agents, range } = overview
@@ -36,7 +38,7 @@ const Stats = ({ overview }: { overview: OverviewData }) => {
         icon={BoxIcon}
         label="Agents"
         value={agents.length}
-        href="/agents"
+        link={{ to: '/agents' }}
         detail={
           <span className="inline-flex items-center gap-1.5">
             <span
@@ -53,7 +55,7 @@ const Stats = ({ overview }: { overview: OverviewData }) => {
         icon={PlayIcon}
         label="Jobs"
         value={current.jobs}
-        href={`/jobs?range=${range}`}
+        link={{ to: '/jobs', search: { range } }}
         detail={
           <Change value={change(current.jobs, previous.jobs)} since={since} />
         }
@@ -62,7 +64,7 @@ const Stats = ({ overview }: { overview: OverviewData }) => {
         icon={ClockIcon}
         label="Avg. run time"
         value={current.runTime === null ? '—' : formatDuration(current.runTime)}
-        href={`/jobs?range=${range}`}
+        link={{ to: '/jobs', search: { range } }}
         detail={
           <Change
             value={change(current.runTime, previous.runTime)}
@@ -77,7 +79,7 @@ const Stats = ({ overview }: { overview: OverviewData }) => {
         value={
           current.queueWait === null ? '—' : formatDuration(current.queueWait)
         }
-        href={`/jobs?range=${range}`}
+        link={{ to: '/jobs', search: { range } }}
         detail={
           <Change
             value={change(current.queueWait, previous.queueWait)}
@@ -140,7 +142,10 @@ const OverviewContent = ({
 export const Overview = () => {
   const { data: session } = authClient.useSession()
   const { data: organization, isPending } = authClient.useActiveOrganization()
-  const [range, setRange] = useEnumParam('range', overviewRanges, '24h')
+  const { range } = route.useSearch()
+  const navigate = route.useNavigate()
+  const setRange = (range: OverviewRange) =>
+    void navigate({ search: (prev) => ({ ...prev, range }), replace: true })
   const name = session?.user.name.split(' ')[0]
 
   return (

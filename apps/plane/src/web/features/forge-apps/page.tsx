@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { ExternalLinkIcon, PlugIcon, PlusIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
@@ -16,7 +17,8 @@ import {
 import { ForgeIcon } from '@/features/forge-apps/forge-icon'
 import { authClient } from '@/lib/auth'
 import { formatDate, formatLastSeen, formatTime } from '@/lib/format'
-import { useParam } from '@/lib/search-params'
+
+const route = getRouteApi('/_signedIn/forge-apps')
 
 const column = createDataTableColumnHelper<ForgeApp>()
 
@@ -129,7 +131,11 @@ const ForgeAppList = ({
 }) => {
   const query = useQuery(forgeAppsQuery(organizationId))
   const apps = query.data
-  const [text, setText] = useParam('q')
+  const { q: text } = route.useSearch()
+  const navigate = route.useNavigate()
+  // Replaces the history entry rather than adding one per keystroke.
+  const setText = (q: string) =>
+    void navigate({ search: (prev) => ({ ...prev, q }), replace: true })
 
   const shown = useMemo(
     () => (apps ?? []).filter((app) => matches(app, text)),
