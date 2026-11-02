@@ -31,7 +31,7 @@ Run from the repo root (Bun only, no npm/pnpm):
 - the database is Postgres, from the root `compose.yaml` (`docker compose up -d`; set `POSTGRES_PORT` if 5432 is taken); `DATABASE_URL` is required. Migrations run at startup
 - `apps/plane/src` is split in `api/` (the backend), `web/` (the console), and `shared/` (dependency-free code both bundle, imported from the web as `@shared/*`); `main.ts` boots both, `types.ts` is the package export the agent app uses
 - `api/` is layered, lowest first; a module only imports from its own layer or below, never from a feature above it:
-  - `platform/`: `env`, `crypto`, the `scheduler`, and `db/` (schema split per feature under `db/schema/`, which owns the enums and their constants)
+  - `platform/`: `env`, `crypto`, the `scheduler`, `pinned-fetch` (SSRF-safe fetch for URLs strangers pick, e.g. MCP client metadata documents), and `db/` (schema split per feature under `db/schema/`, which owns the enums and their constants)
   - `forges/`: the `Forge` port, its registry, and the adapters (`github/`); no feature code
   - features, each with its controllers, services, `errors.ts`, and tests: `organizations/`, `auth/` (better-auth, the session and agent-token macros, and `principal.ts`: who a request acts as and `can(principal, permissions)`), `agents/`, `runners/` (including `agent.controller.ts`, the API the agent binary calls), `jobs/`, `forge-apps/` (registering apps on a forge and receiving their webhooks)
   - `app.ts` mounts the controllers grouped by audience (console, agents, forges); `errors.ts` holds the cross-cutting HTTP errors
