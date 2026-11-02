@@ -24,6 +24,8 @@ import { AppLayout } from '@/components/layout'
 import { Agents } from '@/features/agents/page'
 import { SignIn } from '@/features/auth/sign-in'
 import { SignUp } from '@/features/auth/sign-up'
+import { pendingAuthorization } from '@/features/connected-apps/connected-apps'
+import { Consent } from '@/features/connected-apps/consent'
 import { ForgeApps } from '@/features/forge-apps/page'
 import {
   ForgeAppSetupError,
@@ -86,7 +88,12 @@ const signedOut = createRoute({
   getParentRoute: () => root,
   id: '_signedOut',
   beforeLoad: ({ context }) => {
-    if (context.session) throw redirect({ to: '/', replace: true })
+    // While an MCP client's authorization is pending, signing in hands the
+    // user back to better-auth, which takes them on (to consent): staying
+    // put lets that happen, and lets a client ask the user to sign in again.
+    if (context.session && !pendingAuthorization) {
+      throw redirect({ to: '/', replace: true })
+    }
   },
 })
 
@@ -109,6 +116,29 @@ const login = createRoute({
   // Set by better-auth when signing in with GitHub fails.
   validateSearch: z.object({ error: optional }),
   component: SignIn,
+})
+
+// Where better-auth sends the user when an MCP client asks for access,
+// signing them in first. Outside the console's chrome: it's the app's page.
+const consent = createRoute({
+  getParentRoute: () => root,
+  path: 'consent',
+  validateSearch: z.object({
+    client_id: z.string().optional().catch(undefined),
+    scope: z.string().optional().catch(undefined),
+  }),
+  beforeLoad: ({ context }) => {
+    // Signed out meanwhile: signing in carries the signed request along, as
+    // the page's own query, so it must load with it.
+    if (!context.session) {
+      throw redirect({
+        href: `/login${window.location.search}`,
+        reloadDocument: true,
+        replace: true,
+      })
+    }
+  },
+  component: Consent,
 })
 
 const signup = createRoute({
@@ -172,6 +202,7 @@ const profile = createRoute({
 
 const routeTree = root.addChildren([
   signedOut.addChildren([login, signup]),
+  consent,
   signedIn.addChildren([
     overview,
     jobs,

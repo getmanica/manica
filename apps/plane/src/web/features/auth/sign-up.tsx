@@ -1,10 +1,10 @@
-import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon } from 'lucide-react'
 import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
 import { OtherSignIn } from '@/features/auth/other-sign-in'
 import { MIN_PASSWORD_LENGTH, newPassword } from '@/features/auth/password'
+import { SwitchLink } from '@/features/auth/switch-link'
 import { authClient } from '@/lib/auth'
 
 // Its own form, apart from signing in, so password managers see a sign-up
@@ -97,13 +97,10 @@ export const SignUp = () => {
         <OtherSignIn />
         <p className="text-center text-muted-foreground text-sm">
           Already have an account?{' '}
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-          >
+          <SwitchLink to="/login">
             Sign in
             <ArrowRightIcon className="size-3.5" />
-          </Link>
+          </SwitchLink>
         </p>
       </div>
     </AuthLayout>
