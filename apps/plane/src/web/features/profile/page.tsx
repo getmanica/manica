@@ -1,12 +1,14 @@
 import {
   FingerprintIcon,
   MonitorIcon,
+  PlugIcon,
   Trash2Icon,
   UserIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Page } from '@/components/layout'
 import { Button } from '@/components/ui/button'
+import { ConnectedApps } from '@/features/connected-apps/connected-apps-list'
 import { Account } from '@/features/profile/account'
 import { Appearance } from '@/features/profile/appearance'
 import { DeleteAccountDialog } from '@/features/profile/delete-account-dialog'
@@ -48,6 +50,13 @@ export const Profile = () => (
         description="Sign in with your fingerprint, face, or a security key instead of a password."
       >
         <Passkeys />
+      </ProfileSection>
+      <ProfileSection
+        icon={PlugIcon}
+        title="Connected apps"
+        description="MCP clients you let use an organization for you, like Claude Code or Cursor."
+      >
+        <ConnectedApps />
       </ProfileSection>
       <ProfileSection
         icon={MonitorIcon}

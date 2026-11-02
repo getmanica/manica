@@ -1,10 +1,11 @@
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi } from '@tanstack/react-router'
 import { ArrowRightIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { required, useAppForm } from '@/components/form/app-form'
 import { FieldGroup } from '@/components/ui/field'
 import { AuthLayout } from '@/features/auth/auth-layout'
 import { OtherSignIn } from '@/features/auth/other-sign-in'
+import { SwitchLink } from '@/features/auth/switch-link'
 import { authClient } from '@/lib/auth'
 
 const route = getRouteApi('/_signedOut/login')
@@ -97,13 +98,10 @@ export const SignIn = () => {
         <OtherSignIn passkey />
         <p className="text-center text-muted-foreground text-sm">
           Don't have an account?{' '}
-          <Link
-            to="/signup"
-            className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-          >
+          <SwitchLink to="/signup">
             Sign up
             <ArrowRightIcon className="size-3.5" />
-          </Link>
+          </SwitchLink>
         </p>
       </div>
     </AuthLayout>

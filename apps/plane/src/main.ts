@@ -22,6 +22,9 @@ const server = Bun.serve({
   development: !env.production && { hmr: true, console: true },
   routes: {
     '/api/*': app.fetch,
+    // The MCP server and its OAuth discovery (see `api/mcp`).
+    '/mcp': app.fetch,
+    '/.well-known/*': app.fetch,
     '/*': web,
   },
 })

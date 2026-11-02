@@ -1,6 +1,13 @@
 import { encrypt } from '../src/api/platform/crypto'
 import { db } from '../src/api/platform/db'
-import { agent, forgeApp, organization } from '../src/api/platform/db/schema'
+import {
+  agent,
+  forgeApp,
+  job,
+  member,
+  organization,
+  user,
+} from '../src/api/platform/db/schema'
 
 // An organization with a forge app, to hang test data off.
 export const createOrganization = async () => {
@@ -43,5 +50,60 @@ export const createAgent = async (
     })
     .returning()
   if (!created) throw new Error('No agent created')
+  return created
+}
+
+export const createUser = async () => {
+  const id = crypto.randomUUID()
+  const now = new Date()
+  await db.insert(user).values({
+    id,
+    name: id,
+    email: `${id}@example.com`,
+    createdAt: now,
+    updatedAt: now,
+  })
+  return id
+}
+
+export const createMember = async (
+  organizationId: string,
+  userId: string,
+  role = 'member',
+) => {
+  await db.insert(member).values({
+    id: crypto.randomUUID(),
+    organizationId,
+    userId,
+    role,
+    createdAt: new Date(),
+  })
+}
+
+export const createJob = async (
+  organizationId: string,
+  forgeAppId: string,
+  values: Partial<typeof job.$inferInsert> = {},
+) => {
+  const id = crypto.randomUUID()
+  const [created] = await db
+    .insert(job)
+    .values({
+      id,
+      organizationId,
+      forgeAppId,
+      externalId: id,
+      runId: '1',
+      installationId: '7',
+      repository: 'acme/widgets',
+      name: `job-${id}`,
+      url: 'https://github.com/acme/widgets/actions/runs/1',
+      labels: ['self-hosted'],
+      status: 'queued',
+      queuedAt: new Date(),
+      ...values,
+    })
+    .returning()
+  if (!created) throw new Error('No job created')
   return created
 }
