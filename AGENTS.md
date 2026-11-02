@@ -33,7 +33,7 @@ Run from the repo root (Bun only, no npm/pnpm):
 - `api/` is layered, lowest first; a module only imports from its own layer or below, never from a feature above it:
   - `platform/`: `env`, `crypto`, the `scheduler`, and `db/` (schema split per feature under `db/schema/`, which owns the enums and their constants)
   - `forges/`: the `Forge` port, its registry, and the adapters (`github/`); no feature code
-  - features, each with its controllers, services, `errors.ts`, and tests: `organizations/`, `auth/` (session and agent-token macros), `agents/`, `runners/` (including `agent.controller.ts`, the API the agent binary calls), `jobs/`, `forge-apps/` (registering apps on a forge and receiving their webhooks)
+  - features, each with its controllers, services, `errors.ts`, and tests: `organizations/`, `auth/` (better-auth, the session and agent-token macros, and `principal.ts`: who a request acts as and `can(principal, permissions)`), `agents/`, `runners/` (including `agent.controller.ts`, the API the agent binary calls), `jobs/`, `forge-apps/` (registering apps on a forge and receiving their webhooks)
   - `app.ts` mounts the controllers grouped by audience (console, agents, forges); `errors.ts` holds the cross-cutting HTTP errors
 - `web/`: per-feature code under `features/<feature>/`, shared chrome under `components/`, shadcn under `components/ui`
 - import named modules directly; no barrel files (`api/runners/index.ts` is the one wiring point, building the services from the forge registry)

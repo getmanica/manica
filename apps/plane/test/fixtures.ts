@@ -1,6 +1,12 @@
 import { encrypt } from '../src/api/platform/crypto'
 import { db } from '../src/api/platform/db'
-import { agent, forgeApp, organization } from '../src/api/platform/db/schema'
+import {
+  agent,
+  forgeApp,
+  member,
+  organization,
+  user,
+} from '../src/api/platform/db/schema'
 
 // An organization with a forge app, to hang test data off.
 export const createOrganization = async () => {
@@ -44,4 +50,31 @@ export const createAgent = async (
     .returning()
   if (!created) throw new Error('No agent created')
   return created
+}
+
+export const createUser = async () => {
+  const id = crypto.randomUUID()
+  const now = new Date()
+  await db.insert(user).values({
+    id,
+    name: id,
+    email: `${id}@example.com`,
+    createdAt: now,
+    updatedAt: now,
+  })
+  return id
+}
+
+export const createMember = async (
+  organizationId: string,
+  userId: string,
+  role = 'member',
+) => {
+  await db.insert(member).values({
+    id: crypto.randomUUID(),
+    organizationId,
+    userId,
+    role,
+    createdAt: new Date(),
+  })
 }
