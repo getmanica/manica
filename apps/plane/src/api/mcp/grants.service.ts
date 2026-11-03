@@ -1,8 +1,9 @@
 import { and, desc, eq, ne, sql } from 'drizzle-orm'
 import { auth, hashOAuthToken } from '../auth/better-auth'
+import { bannedNow } from '../auth/bans'
 import { memberRole, type Principal } from '../auth/principal'
-import { NotAMemberError } from '../errors'
-import { db } from '../platform/db'
+import { NotAMemberError, UserBannedError } from '../errors'
+import { db, type Transaction } from '../platform/db'
 import {
   mcpGrant,
   member,
@@ -11,6 +12,7 @@ import {
   oauthConsent,
   oauthRefreshToken,
   organization,
+  user,
   verification,
 } from '../platform/db/schema'
 import { env } from '../platform/env'
@@ -26,8 +28,6 @@ import {
 
 const ownGrant = (userId: string, clientId: string) =>
   and(eq(mcpGrant.userId, userId), eq(mcpGrant.clientId, clientId))
-
-type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 // The client's tokens for the user: access tokens first, as they reference
 // the refresh tokens they came from.
@@ -212,14 +212,16 @@ export const mcpGrantsService = {
     userId: string,
     clientId: string,
     token: { issuedAt: number | undefined; scopes: readonly string[] },
-  ): Promise<Principal | NotAMemberError> {
+  ): Promise<Principal | NotAMemberError | UserBannedError> {
     const [found] = await db
       .select({
         organizationId: mcpGrant.organizationId,
         notBefore: mcpGrant.notBefore,
         consented: oauthConsent.scopes,
+        banned: bannedNow,
       })
       .from(mcpGrant)
+      .innerJoin(user, eq(user.id, mcpGrant.userId))
       .innerJoin(
         member,
         and(
@@ -236,6 +238,9 @@ export const mcpGrantsService = {
       )
       .where(ownGrant(userId, clientId))
       .limit(1)
+    // Banning a user signs them out of the console; their clients are
+    // refused for as long as the ban lasts.
+    if (found?.banned) return new UserBannedError()
     // Its scopes must still be ones the user grants: a token issued from an
     // earlier consent (a code exchanged just as the user consented again)
     // can't carry more than the current one.

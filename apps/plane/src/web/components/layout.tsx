@@ -1,9 +1,11 @@
+import { isAdmin } from '@shared/admin'
 import { Link, useMatchRoute } from '@tanstack/react-router'
 import {
   LayoutDashboardIcon,
   ListChecksIcon,
   PlugIcon,
   ServerIcon,
+  UsersIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { OrganizationSwitcher } from '@/components/organization-switcher'
@@ -25,6 +27,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { UserMenu } from '@/components/user-menu'
+import { authClient } from '@/lib/auth'
 
 const nav = [
   { to: '/', label: 'Overview', icon: LayoutDashboardIcon },
@@ -33,7 +36,16 @@ const nav = [
   { to: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
 ] as const
 
-const NavItem = ({ to, label, icon: Icon }: (typeof nav)[number]) => {
+// Only the plane's admins see it (see the `admin` route).
+const adminNav = [
+  { to: '/admin/users', label: 'Users', icon: UsersIcon },
+] as const
+
+const NavItem = ({
+  to,
+  label,
+  icon: Icon,
+}: (typeof nav)[number] | (typeof adminNav)[number]) => {
   // Nested pages (e.g. `/forge-apps/setup/success`) keep their section active.
   const active = !!useMatchRoute()({ to, fuzzy: to !== '/' })
   return (
@@ -50,27 +62,40 @@ const NavItem = ({ to, label, icon: Icon }: (typeof nav)[number]) => {
   )
 }
 
-const AppSidebar = () => (
-  <Sidebar collapsible="icon">
-    <SidebarHeader>
-      <OrganizationSwitcher />
-    </SidebarHeader>
-    <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupLabel>Platform</SidebarGroupLabel>
-        <SidebarMenu>
-          {nav.map((item) => (
-            <NavItem key={item.to} {...item} />
-          ))}
-        </SidebarMenu>
-      </SidebarGroup>
-    </SidebarContent>
-    <SidebarFooter>
-      <UserMenu />
-    </SidebarFooter>
-    <SidebarRail />
-  </Sidebar>
-)
+const AppSidebar = () => {
+  const { data: session } = authClient.useSession()
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <OrganizationSwitcher />
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarMenu>
+            {nav.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+        {isAdmin(session?.user.role) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarMenu>
+              {adminNav.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+      <SidebarFooter>
+        <UserMenu />
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  )
+}
 
 // Mounted once around every signed-in route, so the sidebar keeps its state
 // across navigations.

@@ -2,13 +2,17 @@ import { cimd } from '@better-auth/cimd'
 import { mcp } from '@better-auth/mcp'
 import { passkey } from '@better-auth/passkey'
 import { betterAuth } from 'better-auth'
+import { APIError } from 'better-auth/api'
+import { eq } from 'drizzle-orm'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { jwt, organization } from 'better-auth/plugins'
+import { admin, jwt, organization } from 'better-auth/plugins'
+import { defaultAc, userAc } from 'better-auth/plugins/admin/access'
 import { organizationsService } from '../organizations/organizations.service'
 import { db } from '../platform/db'
 import * as schema from '../platform/db/schema'
 import { env } from '../platform/env'
 import { pinnedFetch } from '../platform/pinned-fetch'
+import { isBanned, liftExpiredBan, liftsBan } from './bans'
 
 // What MCP clients may ask for: who the user is, staying connected, and
 // reading or managing the organization the user picks when connecting them.
@@ -31,6 +35,19 @@ export const mcpIssuedAtClaim = 'plane_iat_ms'
 export const hashOAuthToken = (token: string) =>
   new Bun.CryptoHasher('sha256').update(token).digest('base64url')
 
+// What the plane's admins may do, through the admin plugin's endpoints
+// (`/api/auth/admin/*`): see users and their sessions, change their role,
+// unban them and sign them out (plane bans and removes them, see
+// `api/admin`). Never act as them: no impersonating, nor setting their
+// password or email, which would amount to it. Users may do none of it.
+const appRoleAccess = {
+  admin: defaultAc.newRole({
+    user: ['list', 'get', 'set-role', 'ban'],
+    session: ['list', 'revoke', 'delete'],
+  }),
+  user: userAc,
+}
+
 export const auth = betterAuth({
   baseURL: env.betterAuthUrl,
   secret: env.betterAuthSecret,
@@ -46,11 +63,25 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       // Memberships go with the user; organizations nobody else is in would
-      // be left unreachable, so they go too.
+      // be left unreachable, so they go too. First, while the user can still
+      // sign in: better-auth then drops their sessions and sign-ins, and
+      // only last the user, outside any transaction.
       beforeDelete: (user) => organizationsService.deleteSoleOwned(user.id),
     },
   },
+  disabledPaths: [
+    // Admins can't act as another user (see `appRoleAccess`).
+    '/admin/impersonate-user',
+    '/admin/stop-impersonating',
+    // Plane bans and removes users itself, each in one transaction (see
+    // `api/admin`).
+    '/admin/ban-user',
+    '/admin/remove-user',
+  ],
   plugins: [
+    // Plane-wide roles and bans. The roles are plane's, an organization's are
+    // the organization plugin's.
+    admin({ roles: appRoleAccess, adminRoles: ['admin'] }),
     organization(),
     // Passkeys are tied to the console's host (the relying party), from
     // `BETTER_AUTH_URL`.
@@ -92,18 +123,47 @@ export const auth = betterAuth({
     }),
   ],
   databaseHooks: {
+    user: {
+      update: {
+        // Bans are lifted by an admin unbanning the user, or once expired by
+        // plane (see `session.create.before`), never by the admin plugin's
+        // unconditional clearing, which could undo a ban set meanwhile.
+        before: async (data, ctx) => {
+          if (liftsBan(data) && ctx?.path !== '/admin/unban-user') return false
+        },
+      },
+    },
     session: {
       create: {
+        // The admin plugin checks for a ban before the session is stored. A
+        // sign-in racing a ban could slip a session in after banning signed
+        // the user out: checking again once it's stored catches it. Banning
+        // keeps the user locked until it's done, so the check waits for it.
+        after: async (created) => {
+          if (!(await isBanned(created.userId))) return
+          await db
+            .delete(schema.session)
+            .where(eq(schema.session.id, created.id))
+          throw APIError.from('FORBIDDEN', {
+            message: 'You have been banned from this application',
+            code: 'BANNED_USER',
+          })
+        },
         // Onboarding: sessions always start in an organization, so signing
-        // up lands the user in their personal one.
-        before: async (session) => ({
-          data: {
-            ...session,
-            activeOrganizationId: await organizationsService.defaultFor(
-              session.userId,
-            ),
-          },
-        }),
+        // up lands the user in their personal one. The admin plugin let the
+        // user in, so a ban they had has expired: it's lifted, unless an
+        // admin banned them again just now (`after` then turns them away).
+        before: async (session) => {
+          await liftExpiredBan(session.userId)
+          return {
+            data: {
+              ...session,
+              activeOrganizationId: await organizationsService.defaultFor(
+                session.userId,
+              ),
+            },
+          }
+        },
       },
     },
   },

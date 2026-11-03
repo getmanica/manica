@@ -18,7 +18,7 @@ import {
 import { agentsService } from '../agents/agents.service'
 import { auth, mcpResource } from '../auth/better-auth'
 import { db } from '../platform/db'
-import { agent, mcpGrant, member, runner } from '../platform/db/schema'
+import { agent, mcpGrant, member, runner, user } from '../platform/db/schema'
 
 const PROTOCOL = '2026-07-28'
 
@@ -810,6 +810,24 @@ describe('authorization', () => {
       expect(response.headers.get('www-authenticate')).toBeNull()
       expect(await response.json()).toMatchObject({ code: 'NOT_A_MEMBER' })
     }
+  })
+
+  test("a banned user's clients are refused while the ban lasts", async () => {
+    const { tokens, userId } = await connect()
+    const ban = (banExpires: Date | null) =>
+      db
+        .update(user)
+        .set({ banned: true, banExpires })
+        .where(eq(user.id, userId))
+
+    await ban(null)
+    const refused = await rpc(tokens.access_token, 'tools/list')
+    expect(refused.status).toBe(403)
+    expect(refused.headers.get('www-authenticate')).toBeNull()
+    expect(await refused.json()).toMatchObject({ code: 'USER_BANNED' })
+
+    await ban(new Date(Date.now() - 1000))
+    expect((await rpc(tokens.access_token, 'tools/list')).status).toBe(200)
   })
 
   test('without a grant, a valid token is refused', async () => {
