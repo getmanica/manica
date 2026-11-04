@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-form'
 import { EyeIcon, EyeOffIcon } from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
+import { Checkbox as CheckboxPrimitive } from '@/components/ui/checkbox'
 import {
   FieldDescription,
   FieldError,
@@ -175,6 +176,20 @@ const SelectInput = <Value extends string>({
 
 const Select = fieldBrand.loose<string | null>()(SelectInput)
 
+// A yes or no, beside its `field.Label` in a horizontal `field.Field`.
+const Checkbox = fieldComponent.strict(
+  ({ field }: { field: FieldWithValue<boolean> }) => (
+    <CheckboxPrimitive
+      id={fieldId(field)}
+      name={field.name}
+      checked={field.value}
+      onCheckedChange={(checked) => field.handleChange(checked)}
+      onBlur={field.handleBlur}
+    />
+  ),
+  'field',
+)
+
 export const fieldComponents = {
   Field,
   Label,
@@ -184,4 +199,5 @@ export const fieldComponents = {
   PasswordInput,
   NumberInput,
   Select,
+  Checkbox,
 }

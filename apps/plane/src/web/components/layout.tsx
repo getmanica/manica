@@ -1,10 +1,13 @@
 import { isAdmin } from '@shared/admin'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useMatchRoute } from '@tanstack/react-router'
 import {
+  CreditCardIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   PlugIcon,
   ServerIcon,
+  TagIcon,
   UsersIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -27,6 +30,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { UserMenu } from '@/components/user-menu'
+import { billingQuery } from '@/features/billing/billing'
 import { authClient } from '@/lib/auth'
 
 const nav = [
@@ -36,16 +40,24 @@ const nav = [
   { to: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
 ] as const
 
+// Only when the plane has billing (see `features/billing`).
+const billingNav = {
+  to: '/billing',
+  label: 'Billing',
+  icon: CreditCardIcon,
+} as const
+
 // Only the plane's admins see it (see the `admin` route).
 const adminNav = [
   { to: '/admin/users', label: 'Users', icon: UsersIcon },
+  { to: '/admin/plans', label: 'Plans', icon: TagIcon },
 ] as const
 
 const NavItem = ({
   to,
   label,
   icon: Icon,
-}: (typeof nav)[number] | (typeof adminNav)[number]) => {
+}: (typeof nav)[number] | (typeof adminNav)[number] | typeof billingNav) => {
   // Nested pages (e.g. `/forge-apps/setup/success`) keep their section active.
   const active = !!useMatchRoute()({ to, fuzzy: to !== '/' })
   return (
@@ -64,6 +76,7 @@ const NavItem = ({
 
 const AppSidebar = () => {
   const { data: session } = authClient.useSession()
+  const { data: billing } = useQuery(billingQuery)
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -76,6 +89,7 @@ const AppSidebar = () => {
             {nav.map((item) => (
               <NavItem key={item.to} {...item} />
             ))}
+            {billing?.enabled && <NavItem {...billingNav} />}
           </SidebarMenu>
         </SidebarGroup>
         {isAdmin(session?.user.role) && (

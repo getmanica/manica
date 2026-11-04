@@ -63,7 +63,7 @@ const actions: Record<
   remove: {
     title: (user) => `Remove ${user.name}?`,
     description:
-      "Their account and sign-ins are deleted, with every organization only they are in, and its agents, forge apps and jobs. This can't be undone.",
+      "Their account and sign-ins are deleted, with every organization they created, even those shared with others, and every organization only they are in, along with their agents, forge apps and jobs. This can't be undone.",
     confirm: 'Remove',
     destructive: true,
     run: (userId) =>

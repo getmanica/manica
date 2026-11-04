@@ -19,6 +19,7 @@ import {
   platformKey,
   platformKeys,
 } from '../../shared/platform'
+import { disabledSince, limitsService } from '../billing/limits'
 import { db } from '../platform/db'
 import { isUniqueViolation } from '../platform/db/errors'
 import { agent, liveStates, runner } from '../platform/db/schema'
@@ -57,6 +58,7 @@ const publicColumns = {
   labels: agent.labels,
   lastSeenAt: agent.lastSeenAt,
   version: agent.version,
+  disabledAt: disabledSince(agent),
   createdAt: agent.createdAt,
   updatedAt: agent.updatedAt,
 }
@@ -157,6 +159,8 @@ export const agentsService = {
   },
 
   // Returns the plaintext token: this is the only time it's available.
+  // Refused past the plan's agent limit, or while the organization is
+  // disabled (see `billing/limits.ts`).
   async create(input: {
     name: string
     os: AgentOs
@@ -167,21 +171,29 @@ export const agentsService = {
     userId: string
   }) {
     const token = generateToken()
-    const [created] = await db
-      .insert(agent)
-      .values({
-        id: crypto.randomUUID(),
-        name: input.name,
-        os: input.os,
-        arch: input.arch,
-        slots: input.slots,
-        labels: input.labels && normalizeLabels(input.labels),
-        tokenHash: hashToken(token),
-        organizationId: input.organizationId,
-        createdById: input.userId,
-      })
-      .onConflictDoNothing({ target: [agent.organizationId, agent.name] })
-      .returning()
+    const created = await limitsService.withRoomIn(
+      input.organizationId,
+      'agents',
+      async (tx) => {
+        const [inserted] = await tx
+          .insert(agent)
+          .values({
+            id: crypto.randomUUID(),
+            name: input.name,
+            os: input.os,
+            arch: input.arch,
+            slots: input.slots,
+            labels: input.labels && normalizeLabels(input.labels),
+            tokenHash: hashToken(token),
+            organizationId: input.organizationId,
+            createdById: input.userId,
+          })
+          .onConflictDoNothing({ target: [agent.organizationId, agent.name] })
+          .returning()
+        return inserted
+      },
+    )
+    if (created instanceof Error) return created
     if (!created) return new AgentNameTakenError()
     return { agent: toPublic(created), token }
   },
@@ -197,6 +209,8 @@ export const agentsService = {
       labels?: string[]
     },
   ) {
+    const refused = await limitsService.writable(organizationId)
+    if (refused) return refused
     try {
       const [updated] = await db
         .update(agent)
@@ -219,8 +233,8 @@ export const agentsService = {
   // Resolves to nothing once deleted. Refused while the agent has runners: deleting it would drop their
   // leases and the jobs they hold. The agent row is locked as its polls lock
   // it, so it can't claim one meanwhile.
-  delete: (organizationId: string, id: string) =>
-    db.transaction(async (tx) => {
+  delete: async (organizationId: string, id: string) => {
+    const refused = await db.transaction(async (tx) => {
       const [found] = await tx
         .select({ id: agent.id })
         .from(agent)
@@ -234,7 +248,11 @@ export const agentsService = {
         .limit(1)
       if (live) return new AgentBusyError()
       await tx.delete(agent).where(eq(agent.id, id))
-    }),
+    })
+    if (refused) return refused
+    // A disabled agent may take its place under the plan.
+    await limitsService.reconcileOwnerOf(organizationId)
+  },
 
   // Resolves an agent from its plaintext token, or undefined if no agent has
   // it (e.g. it was regenerated or the agent deleted).
@@ -259,8 +277,11 @@ export const agentsService = {
   },
 
   // Replaces the agent's token, so the previous one stops working. Returns the
-  // new plaintext token: this is the only time it's available.
+  // new plaintext token: this is the only time it's available. Refused while
+  // the organization is disabled.
   async regenerateToken(organizationId: string, id: string) {
+    const refused = await limitsService.writable(organizationId)
+    if (refused) return refused
     const token = generateToken()
     const [updated] = await db
       .update(agent)

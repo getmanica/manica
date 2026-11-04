@@ -24,6 +24,18 @@ const github = () => {
   return { clientId, clientSecret }
 }
 
+// Billing, through Stripe: on when its API key is set, which then also takes
+// the secret Stripe signs webhooks with. Off, plane has no plans or limits.
+const stripe = () => {
+  const apiKey = Bun.env.STRIPE_API_KEY
+  if (!apiKey) return undefined
+  const webhookSecret = Bun.env.STRIPE_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is required with STRIPE_API_KEY')
+  }
+  return { apiKey, webhookSecret }
+}
+
 export const env = {
   production,
   port: Number(Bun.env.PORT ?? 3000),
@@ -34,6 +46,7 @@ export const env = {
   publicUrl: Bun.env.PUBLIC_URL || betterAuthUrl,
   encryptionKey: required('ENCRYPTION_KEY'),
   githubSignIn: github(),
+  stripe: stripe(),
   // Defaults to the repo's drizzle/. A compiled plane can't find it on its
   // own: import.meta.url points inside the binary, so the image sets it.
   migrationsDir:

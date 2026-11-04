@@ -6,6 +6,7 @@ import { getRouteApi } from '@tanstack/react-router'
 import { PlusIcon, ServerIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
+import { DisabledBadge } from '@/components/disabled-badge'
 import { LabelChip } from '@/components/label-chip'
 import { Page } from '@/components/layout'
 import { LoadError } from '@/components/loading'
@@ -46,7 +47,12 @@ const dataColumns = [
   column.accessor('name', {
     header: 'Name',
     enableHiding: false,
-    cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
+    cell: ({ row: { original: agent } }) => (
+      <span className="flex items-center gap-2">
+        <span className="font-medium">{agent.name}</span>
+        {agent.disabledAt && <DisabledBadge what="agent" />}
+      </span>
+    ),
   }),
   column.accessor(platformKey, {
     id: 'platform',

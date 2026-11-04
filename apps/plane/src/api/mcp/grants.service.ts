@@ -1,6 +1,6 @@
 import { and, desc, eq, ne, sql } from 'drizzle-orm'
-import { auth, hashOAuthToken } from '../auth/better-auth'
 import { bannedNow } from '../auth/bans'
+import { auth, hashOAuthToken } from '../auth/better-auth'
 import { memberRole, type Principal } from '../auth/principal'
 import { NotAMemberError, UserBannedError } from '../errors'
 import { db, type Transaction } from '../platform/db'

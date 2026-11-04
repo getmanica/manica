@@ -1,10 +1,16 @@
 import { type AnyColumn, and, eq, gt, ilike, or, sql } from 'drizzle-orm'
 import type { ForgeAppSort } from '../../shared/pagination'
+import { disabledSince, limitsService } from '../billing/limits'
 import { forges } from '../forges/registry'
 import { encrypt } from '../platform/crypto'
 import { db } from '../platform/db'
 import type { ForgeKind } from '../platform/db/schema'
-import { forgeApp, forgeAppSetup } from '../platform/db/schema'
+import {
+  forgeApp,
+  forgeAppSetup,
+  organizationBilling,
+} from '../platform/db/schema'
+import { env } from '../platform/env'
 import {
   containing,
   filterText,
@@ -27,6 +33,7 @@ const publicColumns = {
   installUrl: forgeApp.installUrl,
   owner: forgeApp.owner,
   lastDeliveryAt: forgeApp.lastDeliveryAt,
+  disabledAt: disabledSince(forgeApp),
   createdAt: forgeApp.createdAt,
 }
 
@@ -96,12 +103,21 @@ export const forgeAppsService = {
     return app ?? new ForgeAppNotFoundError()
   },
 
+  // Refused past the plan's forge app limit, or while the organization is
+  // disabled (see `billing/limits.ts`).
   async startSetup(input: {
     forge: ForgeKind
     organizationId: string
     userId: string
     owner?: string
   }) {
+    const refused = await limitsService.withRoomIn(
+      input.organizationId,
+      'forgeApps',
+      async () => undefined,
+    )
+    if (refused) return refused
+
     const appId = crypto.randomUUID()
     const state = Buffer.from(
       crypto.getRandomValues(new Uint8Array(32)),
@@ -157,6 +173,16 @@ export const forgeAppsService = {
       })
       .returning()
     if (!app) throw new Error('Failed to insert forge app')
+    // The app exists on the forge by now, so it's kept even if setups
+    // started in parallel took the organization past the plan's limit:
+    // the newest are disabled instead.
+    if (env.stripe) {
+      const [owner] = await db
+        .select({ userId: organizationBilling.userId })
+        .from(organizationBilling)
+        .where(eq(organizationBilling.organizationId, app.organizationId))
+      if (owner) await limitsService.reconcile(owner.userId)
+    }
     return toPublic(app)
   },
 }

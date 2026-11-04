@@ -83,6 +83,7 @@ docker run -p 3000:3000 \
 | `PUBLIC_URL`         | no       | Base URL GitHub delivers webhooks to, defaults to `BETTER_AUTH_URL`. Must be publicly reachable |
 | `PORT`               | no       | Defaults to `3000`                                                                           |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | no | Turn on signing in with GitHub, through a GitHub OAuth app whose callback URL is `$BETTER_AUTH_URL/api/auth/callback/github` |
+| `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET` | no | Turn on billing: plans with limits on organizations, agents and forge apps, managed under **Admin > Plans**. The webhook endpoint is `$BETTER_AUTH_URL/api/auth/stripe/webhook`, with the `checkout.session.completed` and `customer.subscription.*` events. Off, nothing is limited |
 
 Keep `ENCRYPTION_KEY` safe: losing it makes the stored GitHub App credentials unreadable.
 

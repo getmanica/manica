@@ -4,12 +4,14 @@ import {
   asc,
   count,
   eq,
+  exists,
   inArray,
   notExists,
 } from 'drizzle-orm'
 import { agentLabelSet } from '../../shared/labels'
 import type { AgentArch, AgentOs } from '../../shared/platform'
 import { AgentNotFoundError } from '../agents/errors'
+import { activeAgent, activeForgeApp } from '../billing/limits'
 import { appContext } from '../forges/context'
 import type { Forge } from '../forges/forge'
 import type { RunnerDistribution } from '../forges/github/distribution'
@@ -136,6 +138,14 @@ export const createRunnersService = (
 
       if (!input.accepting) return { agent: locked, claimed: [], cancel }
 
+      // Disabled past the plan's limit, it's handed no jobs (see
+      // `billing/limits.ts`); the runners it holds finish.
+      const [standing] = await tx
+        .select({ active: activeAgent })
+        .from(agent)
+        .where(eq(agent.id, agentId))
+      if (!standing?.active) return { agent: locked, claimed: [], cancel }
+
       const [occupied] = await tx
         .select({ count: count() })
         .from(runner)
@@ -159,6 +169,13 @@ export const createRunnersService = (
             eq(job.organizationId, locked.organizationId),
             eq(job.status, 'queued'),
             arrayContained(job.labels, agentLabelSet(locked)),
+            // Jobs of a disabled forge app wait for it to be enabled again.
+            exists(
+              tx
+                .select({ id: forgeApp.id })
+                .from(forgeApp)
+                .where(and(eq(forgeApp.id, job.forgeAppId), activeForgeApp)),
+            ),
             notExists(
               tx
                 .select({ id: runner.id })

@@ -1,6 +1,10 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm'
+import { asc, eq, inArray, or, sql } from 'drizzle-orm'
 import { db, type Transaction } from '../platform/db'
-import { member, organization } from '../platform/db/schema'
+import {
+  member,
+  organization,
+  organizationBilling,
+} from '../platform/db/schema'
 
 export const organizationsService = {
   // Every user owns a personal organization, created on their first session.
@@ -21,8 +25,29 @@ export const organizationsService = {
         role: 'owner',
         createdAt: now,
       })
+      await tx
+        .insert(organizationBilling)
+        .values({ organizationId, userId, personal: true })
     })
     return organizationId
+  },
+
+  // Makes the user the billing owner of an organization they just created
+  // (through the organization plugin, see `auth/better-auth.ts`).
+  async attachBillingOwner(organizationId: string, userId: string) {
+    await db
+      .insert(organizationBilling)
+      .values({ organizationId, userId })
+      .onConflictDoNothing()
+  },
+
+  // Who the organization counts against, if anyone.
+  async billingOwner(organizationId: string) {
+    const [found] = await db
+      .select({ userId: organizationBilling.userId })
+      .from(organizationBilling)
+      .where(eq(organizationBilling.organizationId, organizationId))
+    return found?.userId
   },
 
   // The organization a new session starts in: the user's oldest membership,
@@ -37,15 +62,23 @@ export const organizationsService = {
     return membership?.organizationId ?? this.createPersonal(userId)
   },
 
-  // Deletes the organizations the user is the only member of, with
-  // everything in them; organizations shared with others stay. Within `tx`,
-  // if given, to go with the user's own deletion.
-  async deleteSoleOwned(userId: string, tx: Transaction | typeof db = db) {
+  // Deletes the organizations the user is the billing owner of, shared or
+  // not, and those they're the only member of, with everything in them.
+  // Within `tx`, if given, to go with the user's own deletion.
+  async deleteOwned(userId: string, tx: Transaction | typeof db = db) {
+    const billed = tx
+      .select({ id: organizationBilling.organizationId })
+      .from(organizationBilling)
+      .where(eq(organizationBilling.userId, userId))
     const sole = tx
       .select({ id: member.organizationId })
       .from(member)
       .groupBy(member.organizationId)
       .having(sql`count(*) = 1 and bool_and(${member.userId} = ${userId})`)
-    await tx.delete(organization).where(inArray(organization.id, sole))
+    await tx
+      .delete(organization)
+      .where(
+        or(inArray(organization.id, billed), inArray(organization.id, sole)),
+      )
   },
 }

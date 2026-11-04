@@ -12,8 +12,9 @@ import {
 
 // The tables better-auth manages (see `auth/better-auth.ts`): users, their
 // sessions, the admin plugin's roles and bans, the organizations plugin's
-// organizations and memberships, the passkey plugin's passkeys, the jwt plugin's signing keys, and the MCP
-// plugin's OAuth clients, tokens and consents. Generated with
+// organizations and memberships, the passkey plugin's passkeys, the jwt plugin's signing keys, the MCP
+// plugin's OAuth clients, tokens and consents, and the Stripe plugin's
+// customers and subscriptions (present even with billing off, unused). Generated with
 // `bunx auth generate`.
 
 export const user = pgTable('user', {
@@ -30,6 +31,7 @@ export const user = pgTable('user', {
   banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
+  stripeCustomerId: text('stripe_customer_id'),
 })
 
 export const session = pgTable(
@@ -396,4 +398,30 @@ export const mcpGrant = pgTable(
     primaryKey({ columns: [table.userId, table.clientId] }),
     index('mcp_grant_organizationId_idx').on(table.organizationId),
   ],
+)
+
+// The Stripe plugin's subscriptions, one per checkout. `referenceId` is the
+// subscribing user; `plan` the id of the plan (see `billing/plans.ts`).
+export const subscription = pgTable(
+  'subscription',
+  {
+    id: text('id').primaryKey(),
+    plan: text('plan').notNull(),
+    referenceId: text('reference_id').notNull(),
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    status: text('status').default('incomplete'),
+    periodStart: timestamp('period_start'),
+    periodEnd: timestamp('period_end'),
+    trialStart: timestamp('trial_start'),
+    trialEnd: timestamp('trial_end'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false),
+    cancelAt: timestamp('cancel_at'),
+    canceledAt: timestamp('canceled_at'),
+    endedAt: timestamp('ended_at'),
+    seats: integer('seats'),
+    billingInterval: text('billing_interval'),
+    stripeScheduleId: text('stripe_schedule_id'),
+  },
+  (table) => [index('subscription_referenceId_idx').on(table.referenceId)],
 )
