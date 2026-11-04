@@ -11,8 +11,8 @@ import {
 } from 'drizzle-orm/pg-core'
 
 // The tables better-auth manages (see `auth/better-auth.ts`): users, their
-// sessions, the organizations plugin's organizations and memberships, the
-// passkey plugin's passkeys, the jwt plugin's signing keys, and the MCP
+// sessions, the admin plugin's roles and bans, the organizations plugin's
+// organizations and memberships, the passkey plugin's passkeys, the jwt plugin's signing keys, and the MCP
 // plugin's OAuth clients, tokens and consents. Generated with
 // `bunx auth generate`.
 
@@ -26,6 +26,10 @@ export const user = pgTable('user', {
   updatedAt: timestamp('updated_at')
     .$onUpdate(() => new Date())
     .notNull(),
+  role: text('role'),
+  banned: boolean('banned').default(false),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires'),
 })
 
 export const session = pgTable(
@@ -44,6 +48,7 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     activeOrganizationId: text('active_organization_id'),
+    impersonatedBy: text('impersonated_by'),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
 )

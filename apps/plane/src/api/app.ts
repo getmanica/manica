@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { adminUsersController } from './admin/users.controller'
 import { agentsController } from './agents/agents.controller'
 import { auth, signInMethods } from './auth/better-auth'
 import { authMacro } from './auth/session'
@@ -27,6 +28,8 @@ const api = new Elysia({ prefix: '/api' })
   .use(jobsController)
   .use(overviewController)
   .use(connectedAppsController)
+  // Console, for the plane's admins
+  .use(adminUsersController)
   // Agents
   .use(agentController)
   // Forges

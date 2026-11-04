@@ -1,3 +1,4 @@
+import { isAdmin } from '@shared/admin'
 import { jobRanges, overviewRanges } from '@shared/job-ranges'
 import {
   agentSorts,
@@ -6,6 +7,7 @@ import {
   jobSorts,
   pageSizes,
   sortDirections,
+  userSorts,
 } from '@shared/pagination'
 import { platformKeys } from '@shared/platform'
 import {
@@ -21,6 +23,7 @@ import {
 import { useEffect, useRef } from 'react'
 import { z } from 'zod'
 import { AppLayout } from '@/components/layout'
+import { AdminUsers } from '@/features/admin/page'
 import { Agents } from '@/features/agents/page'
 import { SignIn } from '@/features/auth/sign-in'
 import { SignUp } from '@/features/auth/sign-up'
@@ -74,6 +77,11 @@ const agentsSearch = z.object({
 })
 const forgeAppsSearch = z.object({
   ...paged(forgeAppSorts, 'createdAt'),
+  q: text,
+})
+
+const usersSearch = z.object({
+  ...paged(userSorts, 'createdAt'),
   q: text,
 })
 
@@ -200,6 +208,35 @@ const profile = createRoute({
   component: Profile,
 })
 
+// The plane's admin section, for users whose own role (not an
+// organization's) is admin. Everyone else is sent to the overview; the API
+// refuses them too, whatever the page shows.
+const admin = createRoute({
+  getParentRoute: () => signedIn,
+  path: 'admin',
+  beforeLoad: ({ context }) => {
+    if (!isAdmin(context.session?.user.role)) {
+      throw redirect({ to: '/', replace: true })
+    }
+  },
+})
+
+const adminIndex = createRoute({
+  getParentRoute: () => admin,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/admin/users', replace: true })
+  },
+})
+
+const adminUsers = createRoute({
+  getParentRoute: () => admin,
+  path: 'users',
+  validateSearch: usersSearch,
+  search: { middlewares: [stripSearchParams(usersSearch.parse({}))] },
+  component: AdminUsers,
+})
+
 const routeTree = root.addChildren([
   signedOut.addChildren([login, signup]),
   consent,
@@ -211,6 +248,7 @@ const routeTree = root.addChildren([
     forgeAppSetupSuccess,
     forgeAppSetupError,
     profile,
+    admin.addChildren([adminIndex, adminUsers]),
   ]),
 ])
 
@@ -229,15 +267,15 @@ declare module '@tanstack/react-router' {
 }
 
 const Router = ({ session }: { session: Session | null }) => {
-  // Signing in or out runs the guards again, which move the viewer to the
-  // overview or to signing in.
-  const sessionId = session?.session.id
-  const guarded = useRef(sessionId)
+  // Signing in or out, or gaining or losing the admin role, runs the guards
+  // again, which move the viewer to the overview or to signing in.
+  const guard = `${session?.session.id}:${isAdmin(session?.user.role)}`
+  const guarded = useRef(guard)
   useEffect(() => {
-    if (guarded.current === sessionId) return
-    guarded.current = sessionId
+    if (guarded.current === guard) return
+    guarded.current = guard
     void router.invalidate()
-  }, [sessionId])
+  }, [guard])
 
   return <RouterProvider router={router} context={{ session }} />
 }

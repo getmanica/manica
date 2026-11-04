@@ -11,6 +11,7 @@ Manica has two parts:
 
 - one-click GitHub App creation from the console (via an app manifest), owned by your account or an organization
 - organizations, with email and password sign-in
+- an admin section for the plane's admins: list every user, make or remove admins, ban (for a while or until unbanned), sign out, and remove users
 - register Linux and macOS machines (arm64 and x64) with a number of slots, meaning how many jobs they run at once
 - `runs-on` label matching, with built-in labels for each machine's OS and arch plus custom ones (see [How jobs reach an agent](#how-jobs-reach-an-agent))
 - just-in-time runners: each job gets a fresh runner, registered on the repository and unregistered afterwards
@@ -98,6 +99,25 @@ Keep `ENCRYPTION_KEY` safe: losing it makes the stored GitHub App credentials un
      build:
        runs-on: [self-hosted, manica, macos, arm64]
    ```
+
+### Admins
+
+Admins manage every user of the plane from the console's **Admin** section. Being an admin is a plane-wide role, separate from the owner, admin and member roles inside an organization.
+
+Nobody is an admin by default, not even the first user to sign up. Make the first one by hand, once they have signed up:
+
+```sql
+update "user" set role = 'admin' where email = 'you@example.com';
+```
+
+For example, with the Postgres from `compose.yaml`:
+
+```sh
+docker compose exec postgres psql -U manica -d manica \
+  -c "update \"user\" set role = 'admin' where email = 'you@example.com';"
+```
+
+From then on, admins can make others admins from the console. The change applies on the user's next request; no need to sign in again.
 
 ## Installing the agent
 

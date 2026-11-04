@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { isAdmin } from '../../shared/admin'
 import {
   ForbiddenError,
   NoActiveOrganizationError,
@@ -47,6 +48,17 @@ export const authMacro = new Elysia({ name: 'auth' }).macro({
       const context = await organizationSession(headers)
       if (context instanceof UnauthorizedError) return status(401)
       return context
+    },
+  },
+  // Like `auth`, also requiring the user to be one of the plane's admins
+  // (their own role, not an organization's). Read from the database on every
+  // request, so a demoted admin loses access at once.
+  admin: {
+    derive: async ({ status, request: { headers } }) => {
+      const session = await auth.api.getSession({ headers })
+      if (!session) return status(401)
+      if (!isAdmin(session.user.role)) return new ForbiddenError()
+      return { user: session.user, session: session.session }
     },
   },
   // Like `organization`, also requiring the member's role to grant the

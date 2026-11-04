@@ -1,5 +1,5 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm'
-import { db } from '../platform/db'
+import { db, type Transaction } from '../platform/db'
 import { member, organization } from '../platform/db/schema'
 
 export const organizationsService = {
@@ -38,13 +38,14 @@ export const organizationsService = {
   },
 
   // Deletes the organizations the user is the only member of, with
-  // everything in them; organizations shared with others stay.
-  async deleteSoleOwned(userId: string) {
-    const sole = db
+  // everything in them; organizations shared with others stay. Within `tx`,
+  // if given, to go with the user's own deletion.
+  async deleteSoleOwned(userId: string, tx: Transaction | typeof db = db) {
+    const sole = tx
       .select({ id: member.organizationId })
       .from(member)
       .groupBy(member.organizationId)
       .having(sql`count(*) = 1 and bool_and(${member.userId} = ${userId})`)
-    await db.delete(organization).where(inArray(organization.id, sole))
+    await tx.delete(organization).where(inArray(organization.id, sole))
   },
 }

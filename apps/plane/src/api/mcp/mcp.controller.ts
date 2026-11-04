@@ -65,9 +65,9 @@ const calledTools = (text: string) => {
 
 const serve = async (request: Request, claims: Claims) => {
   const authInfo = toAuthInfo(request, claims)
-  // A token whose user left the organization, disconnected the client, or
-  // consented again since it was issued, is refused outright: no scope
-  // would help.
+  // A token whose user left the organization, disconnected the client,
+  // consented again since it was issued, or was banned, is refused outright:
+  // no scope would help.
   const principal =
     typeof claims.sub === 'string' && authInfo.clientId
       ? await mcpGrantsService.principalFor(claims.sub, authInfo.clientId, {
@@ -78,7 +78,7 @@ const serve = async (request: Request, claims: Claims) => {
           scopes: authInfo.scopes,
         })
       : new NotAMemberError()
-  if (principal instanceof NotAMemberError) throw principal
+  if (principal instanceof Error) throw principal
   // Only then the scopes: every token must be able to read.
   if (!authInfo.scopes.includes(mcpScopes.read)) {
     throw createInsufficientScopeError([mcpScopes.read])

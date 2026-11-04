@@ -15,3 +15,7 @@ export class NotAMemberError extends HTTPError.id('NOT_A_MEMBER', 403) {
   override readonly detail =
     'You are no longer a member of this organization: select another one'
 }
+
+export class UserBannedError extends HTTPError.id('USER_BANNED', 403) {
+  override readonly detail = 'You have been banned from this application'
+}

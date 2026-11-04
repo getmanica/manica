@@ -33,5 +33,8 @@ export type AgentSort = (typeof agentSorts)[number]
 export const forgeAppSorts = ['name', 'owner', 'status', 'createdAt'] as const
 export type ForgeAppSort = (typeof forgeAppSorts)[number]
 
+export const userSorts = ['name', 'role', 'status', 'createdAt'] as const
+export type UserSort = (typeof userSorts)[number]
+
 // What a page of a list holds: its rows, and how many rows match in all.
 export type Paged<Item> = { items: Item[]; total: number }
