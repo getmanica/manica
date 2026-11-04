@@ -1,4 +1,5 @@
 import { and, asc, eq, lt, ne } from 'drizzle-orm'
+import { activeForgeApp } from '../billing/limits'
 import { appContext } from '../forges/context'
 import type { Forge } from '../forges/forge'
 import { db } from '../platform/db'
@@ -23,9 +24,10 @@ const STALE_BATCH = 50
 // Catches up on what webhooks missed, since a forge may not retry a delivery
 // the plane failed to receive (GitHub doesn't).
 export const createReconciler = (forges: Record<ForgeKind, Forge>) => ({
-  // Asks each app's forge to resend the deliveries the plane missed.
+  // Asks each app's forge to resend the deliveries the plane missed. Not
+  // for disabled apps: their deliveries are ignored (see `billing/limits.ts`).
   async redeliverFailed(now = new Date()) {
-    const apps = await db.select().from(forgeApp)
+    const apps = await db.select().from(forgeApp).where(activeForgeApp)
     for (const app of apps) {
       const since = new Date(
         Math.max(

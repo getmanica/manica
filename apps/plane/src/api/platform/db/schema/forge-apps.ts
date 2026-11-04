@@ -32,6 +32,8 @@ export const forgeAppSetup = pgTable(
 // `deliveriesCheckedAt` is when plane last asked the forge to resend the
 // webhook deliveries it missed (see `jobs/reconciler`). `lastDeliveryAt` is
 // when a genuine (signed) webhook delivery last arrived.
+// `disabledAt` is set while the app is past its billing owner's plan limit
+// (see `billing/limits.ts`): its deliveries are acknowledged and ignored.
 export const forgeApp = pgTable(
   'forge_app',
   {
@@ -46,6 +48,7 @@ export const forgeApp = pgTable(
     secrets: text('secrets').notNull(),
     deliveriesCheckedAt: timestamp('deliveries_checked_at'),
     lastDeliveryAt: timestamp('last_delivery_at'),
+    disabledAt: timestamp('disabled_at'),
     organizationId: text('organization_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),

@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { createMember, createOrganization } from '../../../test/fixtures'
 import { request, signUp } from '../../../test/oauth'
-import { auth } from '../auth/better-auth'
 import { bannedNow } from '../auth/bans'
+import { auth } from '../auth/better-auth'
 import { db } from '../platform/db'
 import { member, organization, session, user } from '../platform/db/schema'
 
@@ -497,13 +497,17 @@ describe('removing users', () => {
     const { cookie } = await signUpAdmin()
     const leaving = await leaver()
     const joining = await signUp()
+    // Only they are in it, but they don't pay for it: it would go with them,
+    // as their personal organization does whoever joins it.
+    const { organizationId: solo } = await createOrganization()
+    await createMember(solo, leaving.userId)
 
     // The join is under way, not yet committed, as the removal starts.
     const joined = Promise.withResolvers<void>()
     const commit = Promise.withResolvers<void>()
     const joiningTx = db.$client.begin(async (tx) => {
       await tx`insert into member (id, organization_id, user_id, role, created_at)
-        values (${crypto.randomUUID()}, ${leaving.personal}, ${joining.userId}, 'member', now())`
+        values (${crypto.randomUUID()}, ${solo}, ${joining.userId}, 'member', now())`
       joined.resolve()
       await commit.promise
     })
@@ -524,9 +528,13 @@ describe('removing users', () => {
     await joiningTx
 
     expect((await removing).status).toBe(200)
-    expect(await leaving.remaining()).toEqual(
-      [leaving.personal, leaving.shared].sort(),
-    )
+    expect(await leaving.remaining()).toEqual([leaving.shared])
+    expect(
+      await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, solo)),
+    ).toHaveLength(1)
   })
 
   test('a failed removal leaves the user and their organizations as they were', async () => {

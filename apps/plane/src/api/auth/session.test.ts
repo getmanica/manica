@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { createMember, createOrganization } from '../../../test/fixtures'
 import { app } from '../app'
 import { db } from '../platform/db'
-import { member, session } from '../platform/db/schema'
+import { member, session, user } from '../platform/db/schema'
 import { auth } from './better-auth'
 
 // Signs a new user up, returning the cookie their browser would send.
@@ -69,5 +69,43 @@ describe('console session macros', () => {
 
   test('signed out, it is a 401', async () => {
     expect((await createAgent('')).status).toBe(401)
+  })
+})
+
+describe('the Stripe customer', () => {
+  const request = (path: string, body: unknown, cookie?: string) =>
+    app.handle(
+      new Request(`http://localhost/api/auth${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'http://localhost:3000',
+          ...(cookie && { cookie }),
+        },
+        body: JSON.stringify(body),
+      }),
+    )
+
+  test("can't be set by users, signing up or updating themselves", async () => {
+    const signingUp = await request('/sign-up/email', {
+      email: `${crypto.randomUUID()}@example.com`,
+      password: 'correct horse battery',
+      name: 'Test',
+      stripeCustomerId: 'cus_someone_else',
+    })
+    expect(signingUp.status).toBe(400)
+
+    const { cookie, userId } = await signUp()
+    const updating = await request(
+      '/update-user',
+      { stripeCustomerId: 'cus_someone_else' },
+      cookie,
+    )
+    expect(updating.status).toBe(400)
+    const [stored] = await db
+      .select({ stripeCustomerId: user.stripeCustomerId })
+      .from(user)
+      .where(eq(user.id, userId))
+    expect(stored?.stripeCustomerId).toBeNull()
   })
 })

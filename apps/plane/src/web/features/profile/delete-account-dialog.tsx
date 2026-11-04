@@ -42,9 +42,10 @@ const DeleteAccountForm = ({ hasPassword }: { hasPassword: boolean }) => {
           <DialogHeader>
             <DialogTitle>Delete your account?</DialogTitle>
             <DialogDescription>
-              Your account, its sign-ins, and every organization only you are in
-              are deleted, with their agents, forge apps and jobs. This can't be
-              undone.
+              Your account and its sign-ins are deleted, with every organization
+              you created, even those shared with others, and every organization
+              only you are in, along with their agents, forge apps and jobs.
+              This can't be undone.
             </DialogDescription>
           </DialogHeader>
           {hasPassword && (

@@ -8,3 +8,10 @@ export const isUniqueViolation = (error: unknown, constraint: string) => {
   if (!(error.cause instanceof SQL.PostgresError)) return false
   return error.cause.errno === '23505' && error.cause.constraint === constraint
 }
+
+// Whether a query failed on the given check constraint.
+export const isCheckViolation = (error: unknown, constraint: string) => {
+  if (!(error instanceof DrizzleQueryError)) return false
+  if (!(error.cause instanceof SQL.PostgresError)) return false
+  return error.cause.errno === '23514' && error.cause.constraint === constraint
+}

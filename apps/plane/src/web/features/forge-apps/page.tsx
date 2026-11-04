@@ -5,6 +5,7 @@ import { getRouteApi } from '@tanstack/react-router'
 import { ExternalLinkIcon, PlugIcon, PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { createDataTableColumnHelper, DataTable } from '@/components/data-table'
+import { DisabledBadge } from '@/components/disabled-badge'
 import { Page } from '@/components/layout'
 import { LoadError } from '@/components/loading'
 import { TableFilter } from '@/components/table-filter'
@@ -78,7 +79,12 @@ const columns = column.columns([
     id: 'status',
     header: 'Status',
     sortDescFirst: true,
-    cell: ({ row }) => <Status app={row.original} />,
+    cell: ({ row }) =>
+      row.original.disabledAt ? (
+        <DisabledBadge what="forge app" />
+      ) : (
+        <Status app={row.original} />
+      ),
   }),
   column.accessor('createdAt', {
     header: 'Added',

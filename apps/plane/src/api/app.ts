@@ -1,8 +1,10 @@
 import { Elysia } from 'elysia'
+import { adminPlansController } from './admin/plans.controller'
 import { adminUsersController } from './admin/users.controller'
 import { agentsController } from './agents/agents.controller'
 import { auth, signInMethods } from './auth/better-auth'
 import { authMacro } from './auth/session'
+import { billingController } from './billing/billing.controller'
 import { forgeAppsController } from './forge-apps/forge-apps.controller'
 import { forgeWebhooksController } from './forge-apps/webhooks.controller'
 import { jobsController } from './jobs/jobs.controller'
@@ -28,8 +30,10 @@ const api = new Elysia({ prefix: '/api' })
   .use(jobsController)
   .use(overviewController)
   .use(connectedAppsController)
+  .use(billingController)
   // Console, for the plane's admins
   .use(adminUsersController)
+  .use(adminPlansController)
   // Agents
   .use(agentController)
   // Forges

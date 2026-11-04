@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import { activeForgeApp } from '../billing/limits'
 import { appContext } from '../forges/context'
 import { forges } from '../forges/registry'
 import { jobsService } from '../jobs/jobs.service'
@@ -15,6 +16,7 @@ export const forgeWebhooksService = {
         externalId: forgeApp.externalId,
         secrets: forgeApp.secrets,
         organizationId: forgeApp.organizationId,
+        active: activeForgeApp,
       })
       .from(forgeApp)
       .where(eq(forgeApp.id, input.appId))
@@ -32,6 +34,10 @@ export const forgeWebhooksService = {
       .update(forgeApp)
       .set({ lastDeliveryAt: new Date() })
       .where(eq(forgeApp.id, app.id))
+
+    // Disabled past the plan's limit (see `billing/limits.ts`): acknowledged,
+    // so the forge doesn't retry, and ignored.
+    if (!app.active) return
 
     // In order, so a delivery carrying several events for one job applies
     // them as sent.

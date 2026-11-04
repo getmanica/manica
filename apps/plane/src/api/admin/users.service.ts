@@ -10,6 +10,8 @@ import {
 } from 'drizzle-orm'
 import type { UserSort } from '../../shared/pagination'
 import { bannedNow } from '../auth/bans'
+import { billingService } from '../billing/billing.service'
+import { BillingCancelFailedError } from '../billing/errors'
 import { organizationsService } from '../organizations/organizations.service'
 import { db } from '../platform/db'
 import { member, organization, session, user } from '../platform/db/schema'
@@ -93,10 +95,20 @@ export const adminUsersService = {
   },
 
   // Removes the user, with everything that's theirs: sessions, sign-ins,
-  // memberships, and the organizations only they were in. All or nothing:
-  // a failure leaves the user as they were. Not the admin themselves.
+  // memberships, and the organizations they're the billing owner of or only
+  // they were in. Stripe stops billing them first, or nothing is removed.
+  // All or nothing: a failure leaves the user as they were (bar the
+  // cancelled subscriptions). Not the admin themselves.
   async remove(adminId: string, userId: string) {
     if (userId === adminId) return new CannotRemoveSelfError()
+    const failed = await billingService
+      .cancelAll(userId)
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (error instanceof BillingCancelFailedError) return error
+        throw error
+      })
+    if (failed) return failed
     return db.transaction(async (tx) => {
       const [found] = await tx
         .select({ id: user.id })
@@ -106,7 +118,8 @@ export const adminUsersService = {
       if (!found) return new UserNotFoundError()
       // Their organizations, locked: someone joining one meanwhile waits
       // (adding a member checks its organization), and one who joined just
-      // before is counted, so an organization they share isn't deleted.
+      // before is counted, so an organization they share isn't deleted
+      // unless they're its billing owner.
       await tx
         .select({ id: organization.id })
         .from(organization)
@@ -116,7 +129,7 @@ export const adminUsersService = {
         // organizations can't deadlock.
         .orderBy(asc(organization.id))
         .for('update', { of: organization })
-      await organizationsService.deleteSoleOwned(userId, tx)
+      await organizationsService.deleteOwned(userId, tx)
       await tx.delete(user).where(eq(user.id, userId))
       return { id: userId }
     })

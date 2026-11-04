@@ -24,9 +24,11 @@ import { useEffect, useRef } from 'react'
 import { z } from 'zod'
 import { AppLayout } from '@/components/layout'
 import { AdminUsers } from '@/features/admin/page'
+import { AdminPlans } from '@/features/admin/plans-page'
 import { Agents } from '@/features/agents/page'
 import { SignIn } from '@/features/auth/sign-in'
 import { SignUp } from '@/features/auth/sign-up'
+import { BillingPage } from '@/features/billing/page'
 import { pendingAuthorization } from '@/features/connected-apps/connected-apps'
 import { Consent } from '@/features/connected-apps/consent'
 import { ForgeApps } from '@/features/forge-apps/page'
@@ -38,6 +40,7 @@ import { Jobs } from '@/features/jobs/page'
 import { Overview } from '@/features/overview/page'
 import { Profile } from '@/features/profile/page'
 import { authClient } from '@/lib/auth'
+import { queryClient } from '@/lib/query'
 
 type Session = typeof authClient.$Infer.Session
 
@@ -202,6 +205,13 @@ const forgeAppSetupError = createRoute({
   component: ForgeAppSetupError,
 })
 
+// Shown only when the plane has billing; otherwise it leads to the overview.
+const billing = createRoute({
+  getParentRoute: () => signedIn,
+  path: 'billing',
+  component: BillingPage,
+})
+
 const profile = createRoute({
   getParentRoute: () => signedIn,
   path: 'profile',
@@ -237,6 +247,12 @@ const adminUsers = createRoute({
   component: AdminUsers,
 })
 
+const adminPlans = createRoute({
+  getParentRoute: () => admin,
+  path: 'plans',
+  component: AdminPlans,
+})
+
 const routeTree = root.addChildren([
   signedOut.addChildren([login, signup]),
   consent,
@@ -247,8 +263,9 @@ const routeTree = root.addChildren([
     forgeApps,
     forgeAppSetupSuccess,
     forgeAppSetupError,
+    billing,
     profile,
-    admin.addChildren([adminIndex, adminUsers]),
+    admin.addChildren([adminIndex, adminUsers, adminPlans]),
   ]),
 ])
 
@@ -271,6 +288,14 @@ const Router = ({ session }: { session: Session | null }) => {
   // again, which move the viewer to the overview or to signing in.
   const guard = `${session?.session.id}:${isAdmin(session?.user.role)}`
   const guarded = useRef(guard)
+  // Another user, or none: what was cached was the previous one's.
+  const userId = session?.user.id
+  const cachedFor = useRef(userId)
+  useEffect(() => {
+    if (cachedFor.current === userId) return
+    cachedFor.current = userId
+    queryClient.clear()
+  }, [userId])
   useEffect(() => {
     if (guarded.current === guard) return
     guarded.current = guard

@@ -1,12 +1,28 @@
 import { cimd } from '@better-auth/cimd'
 import { mcp } from '@better-auth/mcp'
 import { passkey } from '@better-auth/passkey'
+import { stripe } from '@better-auth/stripe'
 import { betterAuth } from 'better-auth'
-import { APIError } from 'better-auth/api'
-import { eq } from 'drizzle-orm'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from 'better-auth/api'
 import { admin, jwt, organization } from 'better-auth/plugins'
 import { defaultAc, userAc } from 'better-auth/plugins/admin/access'
+import { and, eq, inArray } from 'drizzle-orm'
+import type Stripe from 'stripe'
+import { billingService } from '../billing/billing.service'
+import {
+  AlreadySubscribedError,
+  PaymentOverdueError,
+  PlanUnavailableError,
+  ScheduledChangeError,
+} from '../billing/errors'
+import { limitsService } from '../billing/limits'
+import { plansService } from '../billing/plans.service'
+import { stripeApi } from '../billing/stripe'
 import { organizationsService } from '../organizations/organizations.service'
 import { db } from '../platform/db'
 import * as schema from '../platform/db/schema'
@@ -48,6 +64,77 @@ const appRoleAccess = {
   user: userAc,
 }
 
+// A typed error, as better-auth reports errors.
+const refusal = (
+  error: { code?: string; detail?: string },
+  status:
+    | 'FORBIDDEN'
+    | 'BAD_REQUEST'
+    | 'PAYMENT_REQUIRED'
+    | 'BAD_GATEWAY' = 'FORBIDDEN',
+) =>
+  APIError.from(status, {
+    message: error.detail ?? 'Forbidden',
+    code: error.code ?? status,
+  })
+
+// The billing owners of organizations being deleted, by organization.
+const deletingOwners = new Map<string, string>()
+
+// Changes to a disabled organization are refused: it's read-only while past
+// its billing owner's plan (see `billing/limits.ts`). Removing members,
+// cancelling invitations and deleting it stay possible.
+const refuseIfDisabled = async (organizationId: string) => {
+  const refused = await limitsService.writable(organizationId)
+  if (refused) throw refusal(refused)
+}
+
+// A user changing plans while a payment is overdue: Stripe's plugin would
+// start a second subscription beside the one it's still collecting.
+const overdue = async (userId: string) => {
+  const [found] = await db
+    .select({ id: schema.subscription.id })
+    .from(schema.subscription)
+    .where(
+      and(
+        eq(schema.subscription.referenceId, userId),
+        inArray(schema.subscription.status, ['past_due', 'unpaid']),
+      ),
+    )
+    .limit(1)
+  return !!found
+}
+
+// Billing, on when Stripe is set up: users subscribe themselves to the
+// plans in the `plan` table (see `api/billing`). Every change to a
+// subscription brings the user's resources in line with their plan.
+const billing = (client: Stripe, webhookSecret: string) => {
+  const reconcile = async ({
+    subscription,
+  }: {
+    subscription: { referenceId: string }
+  }) => {
+    await limitsService.reconcile(subscription.referenceId)
+  }
+  return stripe({
+    stripeClient: client,
+    stripeWebhookSecret: webhookSecret,
+    // Customers are created at checkout: most users never subscribe.
+    createCustomerOnSignUp: false,
+    subscription: {
+      enabled: true,
+      plans: () => plansService.forStripe(),
+      // Users subscribe for themselves only.
+      authorizeReference: async ({ user, referenceId }) =>
+        referenceId === user.id,
+      onSubscriptionComplete: reconcile,
+      onSubscriptionCreated: reconcile,
+      onSubscriptionUpdate: reconcile,
+      onSubscriptionDeleted: reconcile,
+    },
+  })
+}
+
 export const auth = betterAuth({
   baseURL: env.betterAuthUrl,
   secret: env.betterAuthSecret,
@@ -62,11 +149,20 @@ export const auth = betterAuth({
     changeEmail: { enabled: true, updateEmailWithoutVerification: true },
     deleteUser: {
       enabled: true,
-      // Memberships go with the user; organizations nobody else is in would
-      // be left unreachable, so they go too. First, while the user can still
-      // sign in: better-auth then drops their sessions and sign-ins, and
-      // only last the user, outside any transaction.
-      beforeDelete: (user) => organizationsService.deleteSoleOwned(user.id),
+      // Stripe stops billing the user first: if it can't be reached, nothing
+      // is deleted. Memberships go with the user; organizations they're the
+      // billing owner of go too, as do those nobody else is in, which would
+      // be left unreachable. First, while the user can still sign in:
+      // better-auth then drops their sessions and sign-ins, and only last
+      // the user, outside any transaction.
+      beforeDelete: async (user) => {
+        const failed = await billingService
+          .cancelAll(user.id)
+          .then(() => undefined)
+          .catch((error: { code?: string; detail?: string }) => error)
+        if (failed) throw refusal(failed, 'BAD_GATEWAY')
+        await organizationsService.deleteOwned(user.id)
+      },
     },
   },
   disabledPaths: [
@@ -77,12 +173,61 @@ export const auth = betterAuth({
     // `api/admin`).
     '/admin/ban-user',
     '/admin/remove-user',
+    // The customer portal is plane's, without switching plans (see
+    // `billing.service`).
+    '/subscription/billing-portal',
+    // Cancelling too: the plugin's would drop an overdue subscription
+    // without cancelling it with Stripe.
+    '/subscription/cancel',
   ],
   plugins: [
     // Plane-wide roles and bans. The roles are plane's, an organization's are
     // the organization plugin's.
     admin({ roles: appRoleAccess, adminRoles: ['admin'] }),
-    organization(),
+    organization({
+      organizationHooks: {
+        // Organizations count towards their creator's plan, as its billing
+        // owner.
+        beforeCreateOrganization: async ({ user }) => {
+          const refused = await limitsService.withRoom(
+            user.id,
+            'organizations',
+            async () => undefined,
+          )
+          if (refused) throw refusal(refused)
+        },
+        // Checking and creating aren't one transaction: two creations racing
+        // past the limit leave the newest disabled.
+        afterCreateOrganization: async ({ organization, user }) => {
+          await organizationsService.attachBillingOwner(
+            organization.id,
+            user.id,
+          )
+          if (env.stripe) await limitsService.reconcile(user.id)
+        },
+        // Deleting an organization may make room for a disabled one: its
+        // billing owner, gone with it by then, is noted beforehand.
+        beforeDeleteOrganization: async ({ organization }) => {
+          const owner = await organizationsService.billingOwner(organization.id)
+          if (owner) deletingOwners.set(organization.id, owner)
+        },
+        afterDeleteOrganization: async ({ organization }) => {
+          const owner = deletingOwners.get(organization.id)
+          deletingOwners.delete(organization.id)
+          if (owner && env.stripe) await limitsService.reconcile(owner)
+        },
+        beforeUpdateOrganization: ({ member }) =>
+          refuseIfDisabled(member.organizationId),
+        beforeAddMember: ({ organization }) =>
+          refuseIfDisabled(organization.id),
+        beforeUpdateMemberRole: ({ organization }) =>
+          refuseIfDisabled(organization.id),
+        beforeCreateInvitation: ({ organization }) =>
+          refuseIfDisabled(organization.id),
+        beforeAcceptInvitation: ({ organization }) =>
+          refuseIfDisabled(organization.id),
+      },
+    }),
     // Passkeys are tied to the console's host (the relying party), from
     // `BETTER_AUTH_URL`.
     passkey({ rpName: 'Manica', origin: new URL(env.betterAuthUrl).origin }),
@@ -121,7 +266,64 @@ export const auth = betterAuth({
       fetchClientMetadataResource: pinnedFetch,
       metadataProfile: 'mcp-2026-07-28',
     }),
+    ...(stripeApi.client && env.stripe
+      ? [billing(stripeApi.client, env.stripe.webhookSecret)]
+      : []),
   ],
+  hooks: {
+    // Nobody sets their own Stripe customer. Disabled plans keep their
+    // subscribers, but take no new ones; a user
+    // with a payment overdue settles it before changing plans; and a new
+    // checkout replaces any the user left open, so only one can be paid.
+    // Invitations are refused in a disabled organization, resent ones too
+    // (resending skips `beforeCreateInvitation`).
+    before: createAuthMiddleware(async (ctx) => {
+      // The Stripe customer is the plugin's to set: a user picking another's
+      // would reach their billing.
+      if (
+        ctx.body &&
+        typeof ctx.body === 'object' &&
+        'stripeCustomerId' in ctx.body
+      ) {
+        throw APIError.from('BAD_REQUEST', {
+          message: 'The Stripe customer cannot be set',
+          code: 'STRIPE_CUSTOMER_READ_ONLY',
+        })
+      }
+      if (ctx.path === '/organization/invite-member') {
+        const session = await getSessionFromCtx(ctx)
+        const organizationId =
+          ctx.body?.organizationId ?? session?.session.activeOrganizationId
+        if (organizationId) await refuseIfDisabled(organizationId)
+        return
+      }
+      if (ctx.path !== '/subscription/upgrade') return
+      const available = await plansService.available()
+      if (!available.some(({ id }) => id === ctx.body?.plan)) {
+        throw refusal(new PlanUnavailableError(), 'BAD_REQUEST')
+      }
+      const session = await getSessionFromCtx(ctx)
+      if (!session) return
+      if (await overdue(session.user.id)) {
+        throw refusal(new PaymentOverdueError(), 'PAYMENT_REQUIRED')
+      }
+      // Subscribers change plans through plane (see `billing.service`):
+      // the plugin would send them to a Stripe portal set up to allow it.
+      // Stripe is asked too, for a paid checkout plane didn't hear of.
+      if (
+        (await billingService.liveSubscription(session.user.id)) ||
+        (await billingService.subscribedInStripe(session.user.id))
+      ) {
+        throw refusal(new AlreadySubscribedError(), 'BAD_REQUEST')
+      }
+      // A change scheduled for the period's end leaves its plan unrecorded
+      // until then, free to be deleted meanwhile: plans change at once.
+      if (ctx.body?.scheduleAtPeriodEnd) {
+        throw refusal(new ScheduledChangeError(), 'BAD_REQUEST')
+      }
+      await billingService.expireOpenCheckouts(session.user.id)
+    }),
+  },
   databaseHooks: {
     user: {
       update: {

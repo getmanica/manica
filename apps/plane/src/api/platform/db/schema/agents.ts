@@ -20,6 +20,8 @@ export const agentArch = pgEnum('agent_arch', agentArches)
 // connects, and `version` to the agent version it last reported. `slots` is how many jobs it runs at once; `labels` are the
 // runs-on labels it answers to on top of the built-in ones (see
 // `shared/labels`), stored lowercased.
+// `disabledAt` is set while the agent is past its billing owner's plan limit
+// (see `billing/limits.ts`): it's handed no jobs.
 export const agent = pgTable(
   'agent',
   {
@@ -32,6 +34,7 @@ export const agent = pgTable(
     labels: text('labels').array().default([]).notNull(),
     lastSeenAt: timestamp('last_seen_at'),
     version: text('version'),
+    disabledAt: timestamp('disabled_at'),
     organizationId: text('organization_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
