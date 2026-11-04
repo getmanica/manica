@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/getmanica/manica/compare/plane-v0.3.0...plane-v0.4.0) (2026-11-04)
+
+
+### Features
+
+* admin section ([22d1e2e](https://github.com/getmanica/manica/commit/22d1e2e02498b82cb6518e42b68a81f90601e6fb))
+* billing ([a55ccd0](https://github.com/getmanica/manica/commit/a55ccd064e90cea0c23b1ddadd96c83f65c1fbcc))
+
 ## [0.3.0](https://github.com/getmanica/manica/compare/plane-v0.2.0...plane-v0.3.0) (2026-11-02)
 
 
