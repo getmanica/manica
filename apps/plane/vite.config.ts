@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite'
+import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
@@ -14,7 +15,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     server: { port: Number(process.env.PORT ?? 3000) },
     resolve: { tsconfigPaths: true },
-    plugins: [tailwindcss(), tanstackStart(), viteReact()],
+    // The devtools plugin goes first; it removes them from the build.
+    plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
     // The build bundles every dependency into dist/server, so the image
     // needs no node_modules. Development keeps them external: its module
     // runner can't evaluate CommonJS (React) inline.
