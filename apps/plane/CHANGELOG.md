@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/getmanica/manica/compare/plane-v0.4.0...plane-v0.5.0) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **plane:** run on Node as a TanStack Start app
+
+### Features
+
+* **plane:** run on Node as a TanStack Start app ([74afbbe](https://github.com/getmanica/manica/commit/74afbbeab0e7292cb660afd9aaa4a9b2d2055c78))
+
 ## [0.4.0](https://github.com/getmanica/manica/compare/plane-v0.3.0...plane-v0.4.0) (2026-11-08)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/getmanica/manica/compare/agent-v0.4.0...agent-v0.5.0) (2026-11-08)
+
+
+### Miscellaneous Chores
+
+* **agent:** Synchronize manica versions
+
 ## [0.4.0](https://github.com/getmanica/manica/compare/agent-v0.3.0...agent-v0.4.0) (2026-11-08)
 
 
