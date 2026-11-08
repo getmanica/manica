@@ -6,6 +6,7 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { Devtools } from '@/components/devtools'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SessionWatcher, sessionQuery } from '@/lib/session'
 import { themeScript } from '@/lib/theme'
@@ -47,6 +48,7 @@ function Document({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased">
         {children}
+        <Devtools />
         <Scripts />
       </body>
     </html>
