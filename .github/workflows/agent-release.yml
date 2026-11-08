@@ -4,21 +4,65 @@ name: agent release
 # for every platform in apps/agent/scripts/platforms.ts, attaches the
 # executables to the release, and publishes them to npm as @manica/agent and
 # one @manica/agent-<os>-<cpu> package per platform.
+#
+# Every update of the release-please pull request also publishes a preview of
+# the upcoming release to npm under the next dist-tag, as
+# X.Y.Z-next.<commit time>.g<sha>. It lives in this workflow, not its own,
+# because npm trusted publishing trusts one workflow file per package.
 on:
   release:
     types: [published]
+  push:
+    branches: [release-please--branches--main]
 
 permissions:
   contents: read
 
+# A newer push to the release-please branch supersedes a preview in flight.
 concurrency:
-  group: agent-release-${{ github.event.release.tag_name }}
-  cancel-in-progress: false
+  group: agent-release-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
+  version:
+    name: version
+    if: github.event_name == 'push' || startsWith(github.event.release.tag_name, 'agent-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      dist-tag: ${{ steps.version.outputs.dist-tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      # A preview's version sorts after the last release and before the one
+      # it previews; the plane image of the same commit gets the same one.
+      - id: version
+        run: |
+          version=$(jq -r .version apps/agent/package.json)
+          if [ "$EVENT" = push ]; then
+            time=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S)
+            version="$version-next.$time.g$(git rev-parse --short=7 HEAD)"
+            tag=next
+          elif [ "agent-v$version" != "$TAG" ]; then
+            echo "::error::$TAG does not match apps/agent/package.json ($version)"
+            exit 1
+          elif [ "$PRERELEASE" = true ]; then
+            tag=next
+          else
+            tag=latest
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist-tag=$tag" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+
   build:
     name: build (${{ matrix.os }})
-    if: startsWith(github.event.release.tag_name, 'agent-v')
+    needs: version
     strategy:
       fail-fast: true
       matrix:
@@ -39,15 +83,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
-      - name: check version
-        run: |
-          version=$(jq -r .version apps/agent/package.json)
-          if [ "agent-v$version" != "$TAG" ]; then
-            echo "::error::$TAG does not match apps/agent/package.json ($version)"
-            exit 1
-          fi
+      # So the executable reports the version it ships as.
+      - name: set version
+        run: jq --arg v "$VERSION" '.version = $v' apps/agent/package.json > "$RUNNER_TEMP/package.json" && mv "$RUNNER_TEMP/package.json" apps/agent/package.json
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ needs.version.outputs.version }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -70,6 +110,7 @@ jobs:
   github:
     name: attach to release
     needs: build
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -93,7 +134,7 @@ jobs:
 
   npm:
     name: publish to npm
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm
@@ -117,17 +158,20 @@ jobs:
           pattern: agent-*
           path: apps/agent/dist/release
           merge-multiple: true
+      - name: set version
+        run: jq --arg v "$VERSION" '.version = $v' apps/agent/package.json > "$RUNNER_TEMP/package.json" && mv "$RUNNER_TEMP/package.json" apps/agent/package.json
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
       - name: stage
         working-directory: apps/agent
         run: bun scripts/npm.ts > "$RUNNER_TEMP/packages"
       # The platform packages go first: @manica/agent depends on them. A
       # version already on npm is skipped, so a rerun picks up where a failed
-      # run stopped. Prereleases go to the next dist-tag, not latest. Every
-      # package has to trust this workflow on npm, there is no token.
+      # run stopped. Prereleases and previews go to the next dist-tag, not
+      # latest. Every package has to trust this workflow on npm, there is no
+      # token.
       - name: publish
         run: |
-          tag=latest
-          if [ "$PRERELEASE" = true ]; then tag=next; fi
           while read -r dir; do
             name=$(jq -r .name "$dir/package.json")
             version=$(jq -r .version "$dir/package.json")
@@ -135,7 +179,7 @@ jobs:
               echo "$name@$version is already published"
               continue
             fi
-            npm publish "$dir" --access public --tag "$tag"
+            npm publish "$dir" --access public --tag "$DIST_TAG"
           done < "$RUNNER_TEMP/packages"
         env:
-          PRERELEASE: ${{ github.event.release.prerelease }}
+          DIST_TAG: ${{ needs.version.outputs.dist-tag }}

@@ -3,21 +3,28 @@ name: release
 # Runs on the GitHub releases release-please publishes. Versions are linked,
 # so every release publishes a plane-vX.Y.Z and an agent-vX.Y.Z release; this
 # workflow ships the plane, agent-release.yml ships the agent.
+#
+# Every update of the release-please pull request also pushes a preview of the
+# upcoming release as the next tag and X.Y.Z-next.<commit time>.g<sha>, the
+# version agent-release.yml gives the agent of the same commit.
 on:
   release:
     types: [published]
+  push:
+    branches: [release-please--branches--main]
 
 permissions:
   contents: read
 
+# A newer push to the release-please branch supersedes a preview in flight.
 concurrency:
-  group: release-${{ github.event.release.tag_name }}
-  cancel-in-progress: false
+  group: release-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   plane:
     name: plane image
-    if: startsWith(github.event.release.tag_name, 'plane-v')
+    if: github.event_name == 'push' || startsWith(github.event.release.tag_name, 'plane-v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -28,19 +35,33 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
       - id: version
-        run: echo "version=${TAG#plane-v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "$EVENT" = push ]; then
+            version=$(jq -r .version apps/plane/package.json)
+            time=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M%S)
+            version="$version-next.$time.g$(git rev-parse --short=7 HEAD)"
+            # So the plane reports the version it ships as.
+            jq --arg v "$version" '.version = $v' apps/plane/package.json > "$RUNNER_TEMP/package.json"
+            mv "$RUNNER_TEMP/package.json" apps/plane/package.json
+          else
+            version=${TAG#plane-v}
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
         env:
+          EVENT: ${{ github.event_name }}
           TAG: ${{ github.event.release.tag_name }}
       - id: meta
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/plane
-          # latest=auto: prereleases don't move latest. No bare major tag
-          # before 1.0, where every minor may break.
+          # latest=auto: prereleases don't move latest, previews never do. No
+          # bare major tag before 1.0, where every minor may break.
+          flavor: latest=${{ github.event_name == 'push' && 'false' || 'auto' }}
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}},value=${{ steps.version.outputs.version }},enable=${{ !startsWith(steps.version.outputs.version, '0.') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}},value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' && !startsWith(steps.version.outputs.version, '0.') }}
+            type=raw,value=next,enable=${{ github.event_name == 'push' }}
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -60,19 +81,3 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha,scope=plane
           cache-to: type=gha,mode=max,scope=plane
-
-  deploy:
-    name: deploy plane
-    needs: plane
-    # Coolify runs the :latest tag, which prereleases don't move.
-    if: ${{ !github.event.release.prerelease }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: trigger deploy
-        run: |
-          curl --fail-with-body --silent --show-error --request POST "$DEPLOY_WEBHOOK" \
-            --header "Authorization: Bearer $DEPLOY_TOKEN"
-        env:
-          DEPLOY_WEBHOOK: ${{ secrets.DEPLOY_WEBHOOK }}
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
