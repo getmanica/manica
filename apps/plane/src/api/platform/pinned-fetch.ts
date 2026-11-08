@@ -1,12 +1,13 @@
 import { lookup } from 'node:dns/promises'
-import { BlockList, isIP } from 'node:net'
+import { BlockList, isIP, type LookupFunction } from 'node:net'
+import { Agent, fetch as undiciFetch } from 'undici'
 
 // Fetching URLs that strangers pick (e.g. an MCP client's metadata document,
 // whose URL is its client id), without letting them aim plane at itself or
-// its network (SSRF): the host is resolved once, every address it resolves
-// to must be public, the connection goes to the address that was checked
-// (so DNS can't answer differently the second time), and redirects are
-// returned, never followed.
+// its network (SSRF): the check happens in the connection's own DNS lookup,
+// where every address the host resolves to must be public and the socket
+// connects to one of those it checked (so DNS can't answer differently a
+// second time), and redirects are returned, never followed.
 
 // The special-purpose address registries (RFC 6890, as IANA keeps them),
 // plus multicast. Ranges whose blocks are partly globally reachable (e.g.
@@ -75,65 +76,98 @@ type Resolve = (hostname: string) => Promise<{ address: string }[]>
 const resolveAll: Resolve = (hostname) =>
   lookup(hostname, { all: true, verbatim: true })
 
-export const createPinnedFetch =
-  ({ resolve = resolveAll, fetch: send = fetch } = {}) =>
-  async (input: Request | string | URL, init?: RequestInit) => {
-    const request =
-      input instanceof Request
-        ? new Request(input, init)
-        : new Request(input.toString(), init)
-    const url = new URL(request.url)
+// Resolves `hostname`, refusing it unless every address it resolves to is
+// public: otherwise a host could pair a public address with a private one.
+const checkedAddresses = async (hostname: string, resolve: Resolve) => {
+  const addresses = await resolve(hostname).catch(() => {
+    throw new PinnedFetchError(`Could not resolve ${hostname}`)
+  })
+  if (addresses.length === 0) {
+    throw new PinnedFetchError(`${hostname} resolves to no address`)
+  }
+  for (const { address } of addresses) {
+    if (isSpecialUseAddress(address)) {
+      throw new PinnedFetchError(
+        `${hostname} resolves to a special-use address`,
+      )
+    }
+  }
+  return addresses.map(({ address }) => ({ address, family: isIP(address) }))
+}
+
+// The DNS lookup sockets connect with: they only reach addresses
+// `checkedAddresses` let through.
+export const createPinnedLookup =
+  (resolve: Resolve = resolveAll): LookupFunction =>
+  (hostname, options, callback) => {
+    checkedAddresses(hostname, resolve).then(
+      (addresses) => {
+        if (options.all) return callback(null, addresses)
+        const [first] = addresses as [(typeof addresses)[number]]
+        callback(null, first.address, first.family)
+      },
+      (error: Error) => callback(error, '', 0),
+    )
+  }
+
+// What a failed request threw for: the refusal, when there was one, which
+// fetch wraps (as the cause of its `TypeError`).
+const refusal = (error: unknown) => {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if (cause instanceof PinnedFetchError) return cause
+  }
+  return error
+}
+
+export const createPinnedFetch = ({
+  resolve = resolveAll,
+  fetch: send = undiciFetch as unknown as typeof fetch,
+}: {
+  resolve?: Resolve
+  fetch?: typeof fetch
+} = {}) => {
+  // Its own connections, never a proxy's (which would resolve names itself).
+  const dispatcher = new Agent({
+    connect: { lookup: createPinnedLookup(resolve) },
+  })
+  return async (input: Request | string | URL, init?: RequestInit) => {
+    // Checked before a Request is made of it, which refuses credentials
+    // with a TypeError of its own.
+    const url = new URL(input instanceof Request ? input.url : input)
     if (url.protocol !== 'https:') {
       throw new PinnedFetchError('Only HTTPS URLs can be fetched')
     }
     if (url.username || url.password) {
       throw new PinnedFetchError('URLs with credentials cannot be fetched')
     }
+    const request =
+      input instanceof Request
+        ? new Request(input, init)
+        : new Request(url.href, init)
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       throw new PinnedFetchError('Only GET and HEAD requests can be made')
     }
-
-    // Resolved once: the connection goes to an address checked here.
-    const hostname = url.hostname.replace(/^\[|\]$/g, '')
-    const addresses = isIP(hostname)
-      ? [{ address: hostname }]
-      : await resolve(hostname).catch(() => {
-          throw new PinnedFetchError(`Could not resolve ${hostname}`)
-        })
-    // Every answer must be public, not just the one used: otherwise a host
-    // could pair a public address with a private one.
-    if (addresses.length === 0) {
-      throw new PinnedFetchError(`${hostname} resolves to no address`)
+    // Sockets don't look IP literals up, so they're checked here.
+    if (
+      isIP(url.hostname.replace(/^\[|\]$/g, '')) &&
+      isSpecialUseAddress(url.hostname)
+    ) {
+      throw new PinnedFetchError(`${url.hostname} is a special-use address`)
     }
-    for (const { address } of addresses) {
-      if (isSpecialUseAddress(address)) {
-        throw new PinnedFetchError(
-          `${hostname} resolves to a special-use address`,
-        )
-      }
-    }
-    const [pinned] = addresses as [{ address: string }]
 
-    // The pinned address is connected to, while the hostname stays the HTTP
-    // Host, the TLS server name, and the name the certificate must be for.
-    const target = new URL(url)
-    target.hostname =
-      isIP(pinned.address) === 6 ? `[${pinned.address}]` : pinned.address
-    const headers = new Headers(request.headers)
-    headers.set('host', url.host)
-    return send(target, {
+    return send(url, {
       method: request.method,
-      headers,
+      headers: request.headers,
       signal: request.signal,
       // Redirects are the caller's to refuse: following one would reach a
-      // host that was never checked.
+      // host whose check was never asked for.
       redirect: 'manual',
-      // A proxy would do its own DNS resolution.
-      proxy: false,
-      // SNI carries names only, so an IP literal goes without.
-      tls: isIP(hostname) ? {} : { serverName: hostname },
-    } as BunFetchRequestInit)
+      dispatcher,
+    } as RequestInit).catch((error: unknown) => {
+      throw refusal(error)
+    })
   }
+}
 
 // For `@better-auth/cimd`, which fetches client metadata documents and the
 // key sets they point at.

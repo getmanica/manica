@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test'
+import { setTimeout as sleep } from 'node:timers/promises'
+import { expect, test } from 'vitest'
 import { runExclusive } from './scheduler'
 
 test('runExclusive runs one task of a name at a time', async () => {
@@ -8,7 +9,7 @@ test('runExclusive runs one task of a name at a time', async () => {
     () => new Promise<void>((resolve) => (release = resolve)),
   )
   // Let the first run take the lock.
-  await Bun.sleep(50)
+  await sleep(50)
   expect(await runExclusive('test-task', async () => {})).toBe(false)
   expect(await runExclusive('other-task', async () => {})).toBe(true)
   release()

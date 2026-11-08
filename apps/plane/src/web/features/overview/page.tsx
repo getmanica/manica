@@ -25,6 +25,7 @@ import {
   StatCardSkeleton,
 } from '@/features/overview/stat-card'
 import { authClient } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 
 const route = getRouteApi('/_signedIn/')
 
@@ -140,7 +141,7 @@ const OverviewContent = ({
 }
 
 export const Overview = () => {
-  const { data: session } = authClient.useSession()
+  const { data: session } = useSession()
   const { data: organization, isPending } = authClient.useActiveOrganization()
   const { range } = route.useSearch()
   const navigate = route.useNavigate()

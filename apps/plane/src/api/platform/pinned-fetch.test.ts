@@ -1,33 +1,51 @@
-import { describe, expect, test } from 'bun:test'
+import type { LookupAddress } from 'node:dns'
+import { describe, expect, test } from 'vitest'
 import {
   createPinnedFetch,
+  createPinnedLookup,
   isSpecialUseAddress,
   PinnedFetchError,
 } from './pinned-fetch'
 
-type Sent = { url: URL; init: BunFetchRequestInit }
+type Sent = { url: URL; init: RequestInit & { dispatcher?: unknown } }
 
-// A transport whose DNS answers `addresses` for every host, recording what
-// it would send instead of sending it.
+// A resolver answering `addresses` for every host (or failing), recording
+// the hosts it was asked for.
+const resolver = (addresses: string[] | Error) => {
+  const lookups: string[] = []
+  const resolve = async (hostname: string) => {
+    lookups.push(hostname)
+    if (addresses instanceof Error) throw addresses
+    return addresses.map((address) => ({ address }))
+  }
+  return { resolve, lookups }
+}
+
+// A pinned fetch whose transport records what it would send instead of
+// sending it.
 const transport = (
-  addresses: string[] | Error,
   reply: () => Response = () => Response.json({ ok: true }),
 ) => {
   const sent: Sent[] = []
-  const lookups: string[] = []
   const pinned = createPinnedFetch({
-    resolve: async (hostname) => {
-      lookups.push(hostname)
-      if (addresses instanceof Error) throw addresses
-      return addresses.map((address) => ({ address }))
-    },
-    fetch: (async (url: URL, init: BunFetchRequestInit) => {
+    resolve: resolver(['1.1.1.1']).resolve,
+    fetch: (async (url: URL, init: Sent['init']) => {
       sent.push({ url, init })
       return reply()
     }) as unknown as typeof fetch,
   })
-  return { pinned, sent, lookups }
+  return { pinned, sent }
 }
+
+// What the connection's lookup answers for `hostname`.
+const look = (addresses: string[] | Error, all: boolean) =>
+  new Promise<string | LookupAddress[]>((resolve, reject) =>
+    createPinnedLookup(resolver(addresses).resolve)(
+      'client.example.com',
+      { all },
+      (error, address) => (error ? reject(error) : resolve(address)),
+    ),
+  )
 
 const refused = async (promise: Promise<unknown>) => {
   const error = await promise.then(
@@ -92,33 +110,16 @@ describe('isSpecialUseAddress', () => {
   })
 })
 
-describe('pinned fetch', () => {
-  test('connects to the address it checked, as the hostname', async () => {
-    const { pinned, sent, lookups } = transport(['93.184.215.14', '1.1.1.1'])
-    const response = await pinned('https://client.example.com/oauth.json', {
-      headers: { accept: 'application/json' },
-    })
-
-    expect(response.status).toBe(200)
-    expect(lookups).toEqual(['client.example.com'])
-    expect(sent).toHaveLength(1)
-    const [{ url, init }] = sent as [Sent]
-    expect(url.href).toBe('https://93.184.215.14/oauth.json')
-    const headers = new Headers(init.headers)
-    expect(headers.get('host')).toBe('client.example.com')
-    expect(headers.get('accept')).toBe('application/json')
-    expect(init.tls?.serverName).toBe('client.example.com')
-    expect(init.redirect).toBe('manual')
-    expect(init.proxy).toBe(false)
-  })
-
-  test('keeps the port and pins IPv6 answers in brackets', async () => {
-    const { pinned, sent } = transport(['2606:4700:10::ac42:93f3'])
-    await pinned('https://client.example.com:8443/a?b=c')
-    const [{ url, init }] = sent as [Sent]
-    expect(url.href).toBe('https://[2606:4700:10::ac42:93f3]:8443/a?b=c')
-    expect(new Headers(init.headers).get('host')).toBe(
-      'client.example.com:8443',
+describe('pinned lookup', () => {
+  test('answers every address the host resolves to, all being public', async () => {
+    expect(
+      await look(['93.184.215.14', '2606:4700:10::ac42:93f3'], true),
+    ).toEqual([
+      { address: '93.184.215.14', family: 4 },
+      { address: '2606:4700:10::ac42:93f3', family: 6 },
+    ])
+    expect(await look(['93.184.215.14', '1.1.1.1'], false)).toBe(
+      '93.184.215.14',
     )
   })
 
@@ -132,9 +133,29 @@ describe('pinned fetch', () => {
     ['a public address paired with a private one', ['1.1.1.1', '10.0.0.1']],
     ['a private address paired with a public one', ['10.0.0.1', '1.1.1.1']],
   ])('refuses a host resolving to %s', async (_, addresses) => {
-    const { pinned, sent } = transport(addresses)
-    await refused(pinned('https://client.example.com/oauth.json'))
-    expect(sent).toHaveLength(0)
+    await refused(look(addresses, true))
+    await refused(look(addresses, false))
+  })
+
+  test('refuses hosts that resolve to nothing, or fail to resolve', async () => {
+    await refused(look([], true))
+    await refused(look(new Error('ENOTFOUND'), true))
+  })
+})
+
+describe('pinned fetch', () => {
+  test('sends the request as is, through its own connections', async () => {
+    const { pinned, sent } = transport()
+    const response = await pinned('https://client.example.com:8443/a?b=c', {
+      headers: { accept: 'application/json' },
+    })
+
+    expect(response.status).toBe(200)
+    const [{ url, init }] = sent as [Sent]
+    // The hostname stays: it's the TLS server name and the certificate's.
+    expect(url.href).toBe('https://client.example.com:8443/a?b=c')
+    expect(new Headers(init.headers).get('accept')).toBe('application/json')
+    expect(init.dispatcher).toBeDefined()
   })
 
   test.each([
@@ -142,31 +163,20 @@ describe('pinned fetch', () => {
     'https://[::1]/oauth.json',
     'https://169.254.169.254/latest/meta-data',
     'https://10.0.0.1/',
-  ])('refuses special-use literals without resolving them: %s', async (url) => {
-    const { pinned, sent, lookups } = transport(['1.1.1.1'])
+  ])('refuses special-use literals: %s', async (url) => {
+    const { pinned, sent } = transport()
     await refused(pinned(url))
-    expect(lookups).toHaveLength(0)
     expect(sent).toHaveLength(0)
   })
 
-  test('connects to a public literal without SNI', async () => {
-    const { pinned, sent, lookups } = transport([])
+  test('sends to public literals', async () => {
+    const { pinned, sent } = transport()
     await pinned('https://1.1.1.1/oauth.json')
-    expect(lookups).toHaveLength(0)
-    const [{ url, init }] = sent as [Sent]
-    expect(url.href).toBe('https://1.1.1.1/oauth.json')
-    expect(init.tls?.serverName).toBeUndefined()
-  })
-
-  test('refuses hosts that resolve to nothing, or fail to resolve', async () => {
-    await refused(transport([]).pinned('https://client.example.com/'))
-    await refused(
-      transport(new Error('ENOTFOUND')).pinned('https://client.example.com/'),
-    )
+    expect(sent[0]?.url.href).toBe('https://1.1.1.1/oauth.json')
   })
 
   test('refuses anything but HTTPS GET and HEAD, and credentials', async () => {
-    const { pinned, sent } = transport(['1.1.1.1'])
+    const { pinned, sent } = transport()
     await refused(pinned('http://client.example.com/oauth.json'))
     await refused(pinned('file:///etc/passwd'))
     await refused(
@@ -180,7 +190,6 @@ describe('pinned fetch', () => {
 
   test('returns redirects instead of following them', async () => {
     const { pinned, sent } = transport(
-      ['1.1.1.1'],
       () =>
         new Response(null, {
           status: 302,
@@ -196,10 +205,23 @@ describe('pinned fetch', () => {
   })
 
   test("passes the caller's abort signal on", async () => {
-    const { pinned, sent } = transport(['1.1.1.1'])
+    const { pinned, sent } = transport()
     const controller = new AbortController()
     await pinned('https://client.example.com/', { signal: controller.signal })
     controller.abort()
     expect(sent[0]?.init.signal?.aborted).toBe(true)
+  })
+
+  test('rejects with the refusal, not the transport error wrapping it', async () => {
+    const pinned = createPinnedFetch({
+      fetch: (async () => {
+        throw new TypeError('fetch failed', {
+          cause: new PinnedFetchError(
+            'client.example.com resolves to a special-use address',
+          ),
+        })
+      }) as unknown as typeof fetch,
+    })
+    await refused(pinned('https://client.example.com/'))
   })
 })

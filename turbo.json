@@ -11,7 +11,9 @@
       "dependsOn": ["^check-types"]
     },
     "lint": {},
-    "test": {},
+    "test": {
+      "passThroughEnv": ["DATABASE_URL"]
+    },
     "format": {
       "cache": false
     },

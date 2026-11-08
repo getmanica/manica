@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { cimd } from '@better-auth/cimd'
 import { mcp } from '@better-auth/mcp'
 import { passkey } from '@better-auth/passkey'
@@ -49,7 +50,7 @@ export const mcpIssuedAtClaim = 'plane_iat_ms'
 // by default, but with a hash plane knows, so it can tell a code it was just
 // handed among the stored ones (see `api/mcp`).
 export const hashOAuthToken = (token: string) =>
-  new Bun.CryptoHasher('sha256').update(token).digest('base64url')
+  createHash('sha256').update(token).digest('base64url')
 
 // What the plane's admins may do, through the admin plugin's endpoints
 // (`/api/auth/admin/*`): see users and their sessions, change their role,

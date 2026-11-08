@@ -1,5 +1,7 @@
 import type { Treaty } from '@elysia/eden'
 import { queryOptions } from '@tanstack/react-query'
+import { createIsomorphicFn } from '@tanstack/react-start'
+import { getRequestUrl } from '@tanstack/react-start/server'
 import { api } from '@/lib/api'
 import { unwrap } from '@/lib/query'
 
@@ -29,13 +31,21 @@ export const consentClientQuery = (clientId: string) =>
 
 // The authorization request a client sent the user here with, as
 // better-auth signed it (sign-in and consent hand it back), or none, also
-// once it expired. Captured as the page loads, before anything can rewrite
-// the URL.
-const signed = new URLSearchParams(window.location.search)
-export const pendingAuthorization =
-  signed.has('sig') && Number(signed.get('exp')) * 1000 > Date.now()
-    ? window.location.search.slice(1)
+// once it expired. From the URL being rendered on the server; in the
+// browser, captured as the page loads, before anything can rewrite the URL.
+const signedRequest = (search: string) => {
+  const signed = new URLSearchParams(search)
+  return signed.has('sig') && Number(signed.get('exp')) * 1000 > Date.now()
+    ? search.replace(/^\?/, '')
     : undefined
+}
+const loadedWith =
+  typeof window === 'undefined'
+    ? undefined
+    : signedRequest(window.location.search)
+export const pendingAuthorization = createIsomorphicFn()
+  .server(() => signedRequest(getRequestUrl().search))
+  .client(() => loadedWith)
 
 // What each scope lets a client do, as the consent page and the profile
 // say it. `required` scopes can't be left out: every token must read.

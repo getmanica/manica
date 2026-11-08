@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
+import { beforeEach, describe, expect, test } from 'vitest'
 import { fakeGithub, type Reply, scope } from '../../../../test/github'
 import { ForgeRequestFailedError, RunnerNameTakenError } from '../errors'
 import { createClients } from './client'

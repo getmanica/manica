@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   type AnyColumn,
   and,
@@ -45,7 +46,7 @@ const generateToken = () =>
 // Tokens carry 256 bits of entropy, so a plain hash is enough: no salt or
 // slow KDF needed, and it keeps lookups by token a single indexed query.
 export const hashToken = (token: string) =>
-  new Bun.CryptoHasher('sha256').update(token).digest('hex')
+  createHash('sha256').update(token).digest('hex')
 
 const NAME_CONSTRAINT = 'agent_organizationId_name_unique'
 

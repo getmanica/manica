@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { fakeGithub, scope } from '../../../../test/github'
 import { createClients } from './client'
 import { createReconcileApi } from './reconcile'

@@ -21,7 +21,7 @@ import { ForgeIcon } from '@/features/forge-apps/forge-icon'
 import { authClient } from '@/lib/auth'
 import { formatDate, formatLastSeen, formatTime } from '@/lib/format'
 
-const route = getRouteApi('/_signedIn/forge-apps')
+const route = getRouteApi('/_signedIn/forge-apps/')
 
 const column = createDataTableColumnHelper<ForgeApp>()
 

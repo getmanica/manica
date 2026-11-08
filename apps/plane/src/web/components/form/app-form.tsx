@@ -14,12 +14,15 @@ import { Spinner } from '@/components/ui/spinner'
 // it: `useFormContext` is only called once they render.
 
 // Submits through the form; fields validate themselves, so the browser's
-// own validation is off.
+// own validation is off. Rendered on the server, a form can be submitted
+// before its handler is attached: natively, as a POST, so what was typed
+// (a password) never ends up in the URL.
 const Form = (props: Omit<ComponentProps<'form'>, 'onSubmit'>) => {
   const form = useFormContext()
   return (
     <form
       id={form.formId}
+      method="post"
       noValidate
       {...props}
       onSubmit={(event) => {

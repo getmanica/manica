@@ -19,6 +19,7 @@ import {
 } from '@/features/connected-apps/connected-apps'
 import { api, errorDetail } from '@/lib/api'
 import { authClient } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 
 const route = getRouteApi('/consent')
 
@@ -33,9 +34,9 @@ export const Consent = () => {
 
   const client = useQuery({
     ...consentClientQuery(clientId),
-    enabled: !!clientId && !!pendingAuthorization,
+    enabled: !!clientId && !!pendingAuthorization(),
   })
-  const { data: session } = authClient.useSession()
+  const { data: session } = useSession()
   const { data: organizations, isPending: loadingOrganizations } =
     authClient.useListOrganizations()
 
@@ -46,7 +47,7 @@ export const Consent = () => {
   const [pending, setPending] = useState<'allow' | 'deny' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  if (!pendingAuthorization || !clientId) {
+  if (!pendingAuthorization() || !clientId) {
     return (
       <AuthLayout>
         <div className="flex flex-col gap-2">
@@ -65,12 +66,13 @@ export const Consent = () => {
   // Plane checks the request with better-auth and records the consent
   // and the organization, then says where to go: back to the client.
   const consent = async (accept: boolean) => {
-    if (!pendingAuthorization) return
+    const oauthQuery = pendingAuthorization()
+    if (!oauthQuery) return
     setPending(accept ? 'allow' : 'deny')
     setError(null)
     const accepted = requested.filter((name) => name !== WRITE || write)
     const { data, error } = await api['connected-apps'].consent.post({
-      oauthQuery: pendingAuthorization,
+      oauthQuery,
       accept,
       scope: accept ? accepted.join(' ') : undefined,
       organizationId: accept ? organizationId : undefined,

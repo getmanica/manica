@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChangePasswordDialog } from '@/features/profile/change-password-dialog'
 import { accountsQuery } from '@/features/profile/profile'
 import { authClient } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 
 type User = { name: string; email: string; emailVerified: boolean }
 
@@ -122,7 +123,7 @@ const Password = () => {
 }
 
 export const Account = () => {
-  const { data: session, refetch } = authClient.useSession()
+  const { data: session, refetch } = useSession()
   if (!session) return null
   return (
     <>

@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { base, request, signUp } from '../../../test/oauth'
 import { mcpResource } from '../auth/better-auth'
 
@@ -6,8 +6,8 @@ import { mcpResource } from '../auth/better-auth'
 // Only `platform/pinned-fetch` resolves names itself (the MCP transport
 // wouldn't otherwise look them up), so a lookup here shows CIMD goes
 // through it.
-const lookups: string[] = []
-mock.module('node:dns/promises', () => ({
+const lookups = vi.hoisted((): string[] => [])
+vi.mock('node:dns/promises', () => ({
   lookup: async (hostname: string) => {
     lookups.push(hostname)
     return [{ address: '10.0.0.7', family: 4 }]

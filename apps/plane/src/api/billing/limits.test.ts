@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { eq, inArray } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import {
   createAgent,
   createJob,

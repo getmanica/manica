@@ -18,15 +18,12 @@ export const request = (path: string, init?: RequestInit) =>
 // server listens in tests, so plane's requests to itself are served
 // in-process.
 const realFetch = globalThis.fetch
-globalThis.fetch = Object.assign(
-  (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = new Request(input, init)
-    return new URL(request.url).origin === new URL(base).origin
-      ? app.handle(request)
-      : realFetch(input, init)
-  },
-  { preconnect: realFetch.preconnect },
-)
+globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+  const request = new Request(input, init)
+  return new URL(request.url).origin === new URL(base).origin
+    ? app.handle(request)
+    : realFetch(input, init)
+}) as typeof fetch
 
 // Signs a new user up, returning the cookie their browser would send.
 export const signUp = async () => {

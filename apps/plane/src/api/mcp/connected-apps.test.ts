@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
 import { and, eq } from 'drizzle-orm'
+import { describe, expect, test } from 'vitest'
 import {
   createAgent,
   createMember,

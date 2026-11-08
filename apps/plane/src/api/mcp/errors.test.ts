@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { AgentNameTakenError, AgentNotFoundError } from '../agents/errors'
 import { ForbiddenError } from '../errors'
 import { runTool } from './errors'
@@ -43,7 +43,7 @@ describe('runTool', () => {
   })
 
   test('anything else is logged, and reported without its details', async () => {
-    const log = spyOn(console, 'error').mockImplementation(() => {})
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await runTool(async () => {
       throw new Error('connection string postgres://secret')
     })
