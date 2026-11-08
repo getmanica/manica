@@ -1,15 +1,19 @@
 import { QueryClient } from '@tanstack/react-query'
 import { errorDetail } from '@/lib/api'
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Pages poll what moves on its own; the rest is fresh enough for a bit.
-      staleTime: 5_000,
-      retry: 1,
+// One per router: per request on the server, so viewers never share a
+// cache, and one for the page's life in the browser.
+export const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Pages poll what moves on its own; the rest is fresh enough for a
+        // bit.
+        staleTime: 5_000,
+        retry: 1,
+      },
     },
-  },
-})
+  })
 
 // A failed request, carrying the API's message.
 export class RequestError extends Error {

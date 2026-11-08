@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
 import { and, eq } from 'drizzle-orm'
+import { describe, expect, test } from 'vitest'
 import {
   createAgent,
   createJob,
@@ -136,7 +136,7 @@ describe('authentication', () => {
     const response = await rpc(undefined, 'tools/list')
     expect(response.status).toBe(401)
     const challenge = response.headers.get('www-authenticate') ?? ''
-    expect(challenge).toStartWith('Bearer ')
+    expect(challenge?.startsWith('Bearer ')).toBe(true)
     expect(challenge).toContain(
       `resource_metadata="${base}/.well-known/oauth-protected-resource/mcp"`,
     )
@@ -157,7 +157,7 @@ describe('authentication', () => {
       tokens.access_token.split('.')[2],
     ].join('.')
     const { id_token: idToken } = tokens as { id_token?: string }
-    expect(idToken).toBeString()
+    expect(idToken).toBeTypeOf('string')
     // Signed by plane, with the claims of a valid token, but expired.
     const { token: expired } = await auth.api.signJWT({
       body: {
@@ -495,7 +495,7 @@ describe('tools', () => {
     expect(first.structuredContent?.items).toHaveLength(10)
     expect(first.structuredContent?.total).toBe(12)
     const cursor = first.structuredContent?.nextCursor
-    expect(cursor).toBeString()
+    expect(cursor).toBeTypeOf('string')
 
     // The cursor carries the query: other arguments don't change it.
     const second = await result(
@@ -541,7 +541,7 @@ describe('tools', () => {
       token: string
     }
     expect(made.name).toBe('mac-mini')
-    expect(token).toStartWith('mna_')
+    expect(token?.startsWith('mna_')).toBe(true)
 
     const taken = await result(
       await callTool(tokens.access_token, 'create_agent', {

@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test'
+import { expect, test } from 'vitest'
 import { createDistribution, pickDistribution } from './distribution'
 
 const sha = (char: string) => char.repeat(64)

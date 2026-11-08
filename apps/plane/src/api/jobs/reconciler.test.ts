@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { createAgent, createOrganization } from '../../../test/fixtures'
 import { fakeForge, forgesWith } from '../../../test/forge'
 import type { Forge, JobEvent } from '../forges/forge'
@@ -43,7 +43,7 @@ const reconcilerWith = (forge: Partial<Forge>) =>
 
 describe('redeliverFailed', () => {
   test('looks back an hour the first time, then since the last check', async () => {
-    const redeliverFailed = mock(
+    const redeliverFailed = vi.fn(
       async (_: Parameters<Forge['redeliverFailed']>[0]) => 0,
     )
     const reconciler = reconcilerWith({ redeliverFailed })
@@ -97,7 +97,7 @@ describe('resyncStale', () => {
   beforeEach(() => jobsService.record(app, queued))
 
   test('leaves jobs heard of recently alone', async () => {
-    const getJob = mock(async () => undefined)
+    const getJob = vi.fn(async () => undefined)
     await lastHeard(5)
     await reconcilerWith({ getJob }).resyncStale()
     expect(getJob).not.toHaveBeenCalled()
@@ -126,7 +126,7 @@ describe('resyncStale', () => {
   })
 
   test('waits again before rechecking a job that hasn’t changed', async () => {
-    const getJob = mock(async () => queued)
+    const getJob = vi.fn(async () => queued)
     const reconciler = reconcilerWith({ getJob })
     await lastHeard(11)
     await reconciler.resyncStale()

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { createAgent, createOrganization } from '../../../test/fixtures'
 import { fakeForge, forgesWith } from '../../../test/forge'
 import { agentsService } from '../agents/agents.service'
@@ -15,9 +16,9 @@ type App = { id: string; organizationId: string }
 
 let app: App
 let mac: typeof agent.$inferSelect
-let createRunner: ReturnType<typeof mock<Forge['createRunner']>>
-let deleteRunner: ReturnType<typeof mock<Forge['deleteRunner']>>
-let findRunner: ReturnType<typeof mock<Forge['findRunner']>>
+let createRunner: ReturnType<typeof vi.fn<Forge['createRunner']>>
+let deleteRunner: ReturnType<typeof vi.fn<Forge['deleteRunner']>>
+let findRunner: ReturnType<typeof vi.fn<Forge['findRunner']>>
 let forge: Forge
 
 let registered = 0
@@ -26,12 +27,12 @@ beforeEach(async () => {
   const created = await createOrganization()
   app = { id: created.app.id, organizationId: created.organizationId }
   mac = await createAgent(app.organizationId, { name: 'studio' })
-  createRunner = mock<Forge['createRunner']>(async () => {
+  createRunner = vi.fn<Forge['createRunner']>(async () => {
     registered++
     return { externalRunnerId: String(registered), config: `jit-${registered}` }
   })
-  deleteRunner = mock<Forge['deleteRunner']>(async () => 'deleted')
-  findRunner = mock<Forge['findRunner']>(async () => undefined)
+  deleteRunner = vi.fn<Forge['deleteRunner']>(async () => 'deleted')
+  findRunner = vi.fn<Forge['findRunner']>(async () => undefined)
   forge = fakeForge({ createRunner, deleteRunner, findRunner })
   distribution = { for: async () => runnerBuild }
 })
@@ -110,7 +111,7 @@ describe('poll', () => {
     const externalId = await queue()
     const { start, leaseSeconds } = await poll()
     expect(start).toHaveLength(1)
-    expect(start[0]?.config).toStartWith('jit-')
+    expect(start[0]?.config?.startsWith('jit-')).toBe(true)
     expect(start[0]?.name).toBe(`manica-${start[0]?.id}`)
     expect(leaseSeconds).toBe(LEASE_MS / 1000)
     expect(createRunner.mock.calls[0]?.[0]).toMatchObject({
@@ -256,7 +257,7 @@ describe('poll', () => {
     )
     await queue()
     const polled = poll()
-    await Bun.sleep(50)
+    await sleep(50)
     const [claimed] = await db
       .select()
       .from(runner)

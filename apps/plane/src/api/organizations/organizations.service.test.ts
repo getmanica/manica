@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
 import { eq, inArray } from 'drizzle-orm'
+import { describe, expect, test } from 'vitest'
 import { createOrganization } from '../../../test/fixtures'
 import { db } from '../platform/db'
 import {

@@ -14,10 +14,10 @@ import { BanUserDialog } from '@/features/admin/ban-user-dialog'
 import { ConfirmUserActionDialog } from '@/features/admin/confirm-user-action-dialog'
 import { type UserAction, UserActions } from '@/features/admin/user-actions'
 import { type AdminUser, usersKey, usersQuery } from '@/features/admin/users'
-import { authClient } from '@/lib/auth'
 import { userAvatar } from '@/lib/avatar'
 import { formatDate, formatTime } from '@/lib/format'
 import { RequestError } from '@/lib/query'
+import { useSession } from '@/lib/session'
 
 const route = getRouteApi('/_signedIn/admin/users')
 
@@ -116,7 +116,7 @@ const Empty = ({ title, detail }: { title: string; detail: string }) => (
 
 const UserList = () => {
   const queryClient = useQueryClient()
-  const { data: session, refetch: refetchSession } = authClient.useSession()
+  const { data: session, refetch: refetchSession } = useSession()
   const selfId = session?.user.id
   // The open dialog, if any. The user it acts on outlives it, so the dialog
   // keeps its content while it animates closed.

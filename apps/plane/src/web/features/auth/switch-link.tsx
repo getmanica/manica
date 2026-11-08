@@ -14,8 +14,8 @@ export const SwitchLink = ({
 }) => {
   const className =
     'inline-flex items-center gap-1 font-medium text-foreground hover:underline'
-  return pendingAuthorization ? (
-    <a href={`${to}?${pendingAuthorization}`} className={className}>
+  return pendingAuthorization() ? (
+    <a href={`${to}?${pendingAuthorization()}`} className={className}>
       {children}
     </a>
   ) : (

@@ -12,7 +12,9 @@ export const Appearance = () => {
   return (
     <RadioGroup
       aria-label="Theme"
-      value={theme}
+      // Controlled from the start: none is checked until the stored theme
+      // is read, once mounted.
+      value={theme ?? null}
       onValueChange={(value) => setTheme(value as Theme)}
       className="grid-cols-1 gap-3 sm:grid-cols-3"
     >

@@ -31,7 +31,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { UserMenu } from '@/components/user-menu'
 import { billingQuery } from '@/features/billing/billing'
-import { authClient } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 
 const nav = [
   { to: '/', label: 'Overview', icon: LayoutDashboardIcon },
@@ -75,7 +75,7 @@ const NavItem = ({
 }
 
 const AppSidebar = () => {
-  const { data: session } = authClient.useSession()
+  const { data: session } = useSession()
   const { data: billing } = useQuery(billingQuery)
   return (
     <Sidebar collapsible="icon">

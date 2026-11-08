@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/sidebar'
 import { authClient } from '@/lib/auth'
 import { userAvatar } from '@/lib/avatar'
+import { useSession } from '@/lib/session'
 
 type User = { id: string; name: string; email: string; image?: string | null }
 
@@ -38,7 +39,7 @@ const UserIdentity = ({ user, avatar }: { user: User; avatar: string }) => (
 
 export const UserMenu = () => {
   const { isMobile } = useSidebar()
-  const { data: session } = authClient.useSession()
+  const { data: session } = useSession()
   const user = session?.user
   const avatar = useMemo(
     () => (user ? (user.image ?? userAvatar(user.id)) : ''),

@@ -1,5 +1,6 @@
-import { describe, expect, test } from 'bun:test'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
+import { describe, expect, test } from 'vitest'
 import { createMember, createOrganization } from '../../../test/fixtures'
 import { request, signUp } from '../../../test/oauth'
 import { bannedNow } from '../auth/bans'
@@ -520,7 +521,7 @@ describe('removing users', () => {
           where datname = current_database() and wait_event_type = 'Lock'`
         if (waiting.length > 0) break
         if (tries > 200) throw new Error('The removal never waited')
-        await Bun.sleep(10)
+        await sleep(10)
       }
     } finally {
       commit.resolve()

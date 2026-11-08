@@ -2,10 +2,18 @@
 
 # Build from the repository root: docker build -f apps/plane/Dockerfile .
 #
-# The build stage runs on the builder's own platform and cross-compiles for
-# the target, and the final stage only copies files, so a multi-platform build
-# needs neither emulation nor a runner per architecture.
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-slim AS build
+# The build stage runs on the builder's own platform: what it builds is
+# JavaScript with every dependency bundled in, so the final stage only
+# copies files, and a multi-platform build needs neither emulation nor a
+# runner per architecture.
+
+# Bun installs the dependencies; Node runs the build. Both for the builder's
+# platform: copying from the image directly would take the target's Bun.
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-slim AS bun
+
+FROM --platform=$BUILDPLATFORM node:24-slim AS build
+
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
@@ -18,26 +26,20 @@ COPY packages/tsconfig packages/tsconfig
 RUN bun install --frozen-lockfile --ignore-scripts --filter plane
 
 COPY apps/plane apps/plane
+RUN cd apps/plane && bun run build
 
-# x64 builds target baseline CPUs: self-hosted machines may predate AVX2.
-ARG TARGETARCH
-RUN case "$TARGETARCH" in \
-      amd64) target=bun-linux-x64-baseline ;; \
-      arm64) target=bun-linux-arm64 ;; \
-      *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
-    esac \
-    && cd apps/plane \
-    && bun run build --target "$target"
+FROM gcr.io/distroless/nodejs24-debian13:nonroot
 
-FROM gcr.io/distroless/cc-debian13:nonroot
-
+# dist/serve.js is the plane; dist/migrate.js applies the migrations in
+# drizzle/, as a step of its own before the plane starts (it refuses to
+# start while any are pending):
+#   docker run … ghcr.io/getmanica/plane dist/migrate.js
 WORKDIR /app
-COPY --from=build /app/apps/plane/dist/plane ./plane
+COPY --from=build /app/apps/plane/dist ./dist
 COPY --from=build /app/apps/plane/drizzle ./drizzle
 
 ENV NODE_ENV=production \
-    PORT=3000 \
-    MIGRATIONS_DIR=/app/drizzle
+    PORT=3000
 
 EXPOSE 3000
-ENTRYPOINT ["/app/plane"]
+CMD ["dist/serve.js"]

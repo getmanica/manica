@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import Stripe from 'stripe'
+import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { createUser } from '../../../test/fixtures'
 import { organizationsService } from '../organizations/organizations.service'
 import { db } from '../platform/db'

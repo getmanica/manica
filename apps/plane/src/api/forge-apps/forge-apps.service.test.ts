@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test'
+import { expect, test } from 'vitest'
 import { createOrganization } from '../../../test/fixtures'
 import { ForgeAppNotFoundError } from './errors'
 import { forgeAppsService } from './forge-apps.service'

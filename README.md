@@ -63,15 +63,22 @@ Runners are leased for a minute, and each poll renews the lease. If an agent sto
 
 ## Running the plane
 
-The plane is published as a container image, `ghcr.io/getmanica/plane` (linux/amd64 and linux/arm64). It needs Postgres and runs its migrations at startup.
+The plane is published as a container image, `ghcr.io/getmanica/plane` (linux/amd64 and linux/arm64), running on Node. It needs Postgres.
+
+The plane doesn't migrate its database on its own, and refuses to start while migrations are pending. Run them from the same image before starting it, and before each upgrade (for example as a pre-deploy step):
 
 ```sh
-docker run -p 3000:3000 \
-  -e DATABASE_URL=postgres://manica:manica@db:5432/manica \
-  -e BETTER_AUTH_URL=https://manica.example.com \
-  -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
-  -e ENCRYPTION_KEY="$(openssl rand -base64 32)" \
-  ghcr.io/getmanica/plane
+docker run --rm --env-file plane.env ghcr.io/getmanica/plane dist/migrate.js
+docker run -p 3000:3000 --env-file plane.env ghcr.io/getmanica/plane
+```
+
+with `plane.env` holding the variables below, for example:
+
+```sh
+DATABASE_URL=postgres://manica:manica@db:5432/manica
+BETTER_AUTH_URL=https://manica.example.com
+BETTER_AUTH_SECRET=...   # openssl rand -base64 32
+ENCRYPTION_KEY=...       # openssl rand -base64 32
 ```
 
 | Variable             | Required | Description                                                                                  |
@@ -170,8 +177,11 @@ Bun + Turborepo monorepo: `apps/plane`, `apps/agent`, and shared TS configs in `
 bun install
 docker compose up -d                   # Postgres; set POSTGRES_PORT if 5432 is taken
 cp apps/plane/.env.example apps/plane/.env   # fill in the secrets
+bun run --cwd apps/plane db:migrate    # again after pulling new migrations
 bun run dev
 ```
+
+Bun is the package manager and task runner; the plane itself runs on Node (TanStack Start, served by Vite in development).
 
 GitHub must be able to reach the webhook URL, so in development run a tunnel that forwards every path (for example `cloudflared tunnel --url http://localhost:3000`) and set `PUBLIC_URL` to the URL it prints. smee.io doesn't work, because each app has its own webhook path.
 

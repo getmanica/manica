@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
+import { describe, expect, test } from 'vitest'
 import { createMember, createOrganization } from '../../../test/fixtures'
 import { app } from '../app'
 import { db } from '../platform/db'

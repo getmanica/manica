@@ -4,8 +4,9 @@ import { stripeClient } from '@better-auth/stripe/client'
 import { adminClient, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 
+// Same origin (better-auth's default in the browser). On the server it's
+// built but never called: the session comes from `lib/session`.
 export const authClient = createAuthClient({
-  baseURL: window.location.origin,
   plugins: [
     // The plane's admins manage its users (see `features/admin`).
     adminClient(),
