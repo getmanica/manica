@@ -25,6 +25,31 @@ export class InvalidConfigError extends AgentError {
   }
 }
 
+export class VmBackendUnavailableError extends AgentError {
+  override readonly name = 'VmBackendUnavailableError'
+  constructor(
+    readonly backend: string,
+    readonly problems: string[],
+  ) {
+    super(
+      `Jobs can't run in ${backend} VMs: ${problems.join('; ')} (run manica-agent doctor for details)`,
+    )
+  }
+}
+
+export class VmNamespaceInUseError extends AgentError {
+  override readonly name = 'VmNamespaceInUseError'
+  constructor(
+    readonly namespace: string,
+    readonly pid: number | null,
+    readonly lock: string,
+  ) {
+    super(
+      `Another agent${pid ? ` (pid ${pid})` : ''} runs jobs in VMs from ${namespace}: one agent at a time can, since each deletes the VMs it finds there on start (lock: ${lock})`,
+    )
+  }
+}
+
 export class TokenRejectedError extends AgentError {
   override readonly name = 'TokenRejectedError'
   constructor() {

@@ -3,6 +3,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import * as v from 'valibot'
 import { ConfigNotFoundError, InvalidConfigError } from './errors'
+import { VM_PREFIX } from './vm/backend'
+import { BACKEND_NAMES } from './vm/backends'
 
 // Seconds between polls: how soon a queued job is picked up. Runner leases
 // last a minute, so polls stay well within that.
@@ -46,14 +48,36 @@ const ConfigSchema = v.pipe(
       }),
       {},
     ),
+    // Run each job in a fresh VM of its own, cloned from `image`, instead
+    // of on this machine.
+    vm: v.optional(
+      v.strictObject({
+        backend: v.picklist(
+          BACKEND_NAMES,
+          `must be one of: ${BACKEND_NAMES.join(', ')}`,
+        ),
+        // The stopped VM jobs are cloned from, as the backend names it.
+        // Not named like the VMs the agent makes: it would delete it as one
+        // a previous agent left behind.
+        image: v.pipe(
+          v.string(),
+          v.nonEmpty(),
+          v.check(
+            (image) => !image.startsWith(VM_PREFIX),
+            `can't start with ${VM_PREFIX}, which names the VMs jobs run in`,
+          ),
+        ),
+      }),
+    ),
   }),
-  v.transform(({ plane: { poll_interval, ...plane }, agent }) => ({
+  v.transform(({ plane: { poll_interval, ...plane }, agent, vm }) => ({
     plane: {
       ...plane,
       // Milliseconds between polls.
       pollInterval: poll_interval * 1000,
     },
     dataDir: agent.data_dir ?? defaultDataDir(),
+    vm,
   })),
 )
 

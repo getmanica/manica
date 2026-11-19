@@ -15,3 +15,12 @@ token = "mna_..."
 # $XDG_DATA_HOME/manica (~/.local/share/manica; %LOCALAPPDATA%\manica on
 # Windows).
 # data_dir = "/var/lib/manica"
+
+# Run each job in a fresh macOS VM of its own, cloned from a stopped "golden"
+# VM, and deleted afterwards, instead of on this machine as this user. Needs
+# an Apple silicon Mac and the backend's CLI installed; macOS runs at most 2
+# VMs at once, so give the agent at most 2 slots. Check the setup with
+# `manica-agent doctor`.
+# [vm]
+# backend = "lima"
+# image = "manica-golden"

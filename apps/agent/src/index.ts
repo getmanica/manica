@@ -1,20 +1,51 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
 import { parseCli, usage } from './cli'
-import { defaultConfigDir, loadConfig } from './config'
+import { type Config, defaultConfigDir, loadConfig } from './config'
+import { diagnose, formatSections, healthy } from './doctor'
 import { AgentError, UsageError } from './errors'
 import { reportExit, runLive } from './live'
 import { createPlane } from './plane'
+import { createLocalHost } from './runner/host'
 import { createInstaller } from './runner/install'
 import { createSupervisor } from './runner/supervisor'
+import { createVmHost } from './runner/vm-host'
 import { version } from './version'
+import { BACKENDS } from './vm/backends'
+
+// Where jobs run: in VMs if `[vm]` is set, checked up front so the agent
+// doesn't take jobs it would only fail; otherwise on this machine.
+const createHost = async (config: Config) => {
+  const installer = createInstaller(join(config.dataDir, 'builds'))
+  if (!config.vm) {
+    return createLocalHost({
+      runnersDir: join(config.dataDir, 'runners'),
+      installer,
+    })
+  }
+  const host = createVmHost({
+    backend: BACKENDS[config.vm.backend](),
+    image: config.vm.image,
+    installer,
+  })
+  await host.check()
+  return host
+}
 
 const main = async () => {
   const cli = parseCli(Bun.argv.slice(2))
   if (cli.help) return console.log(usage)
   if (cli.version) return console.log(version)
+  const configDir = cli.configDir ?? defaultConfigDir()
 
-  const config = await loadConfig(cli.configDir ?? defaultConfigDir())
+  if (cli.command === 'doctor') {
+    const sections = await diagnose(configDir)
+    console.log(formatSections(sections))
+    process.exitCode = healthy(sections) ? 0 : 1
+    return
+  }
+
+  const config = await loadConfig(configDir)
 
   // The first SIGINT or SIGTERM lets running jobs finish; a second stops
   // them.
@@ -36,8 +67,7 @@ const main = async () => {
 
   const plane = createPlane(config.plane)
   const supervisor = createSupervisor({
-    runnersDir: join(config.dataDir, 'runners'),
-    installer: createInstaller(join(config.dataDir, 'builds')),
+    host: await createHost(config),
     report: reportExit(plane),
   })
   await runLive(config, plane, supervisor, {
