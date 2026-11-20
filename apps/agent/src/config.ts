@@ -11,6 +11,12 @@ import { BACKEND_NAMES } from './vm/backends'
 const DEFAULT_POLL_INTERVAL_SECONDS = 5
 const MAX_POLL_INTERVAL_SECONDS = 20
 
+// Seconds between metrics readings, when reported. The plane keeps one
+// reading per agent every 15 seconds at most.
+const DEFAULT_METRICS_INTERVAL_SECONDS = 30
+const MIN_METRICS_INTERVAL_SECONDS = 15
+const MAX_METRICS_INTERVAL_SECONDS = 600
+
 // Strict objects, so a misspelled key is reported instead of ignored.
 const ConfigSchema = v.pipe(
   v.strictObject({
@@ -48,6 +54,28 @@ const ConfigSchema = v.pipe(
       }),
       {},
     ),
+    // Report this machine's CPU, memory and disk use to the plane, with the
+    // polls. Off unless enabled.
+    metrics: v.optional(
+      v.strictObject({
+        enabled: v.optional(v.boolean(), false),
+        interval: v.optional(
+          v.pipe(
+            v.number(),
+            v.minValue(
+              MIN_METRICS_INTERVAL_SECONDS,
+              `must be at least ${MIN_METRICS_INTERVAL_SECONDS} seconds`,
+            ),
+            v.maxValue(
+              MAX_METRICS_INTERVAL_SECONDS,
+              `must be at most ${MAX_METRICS_INTERVAL_SECONDS} seconds`,
+            ),
+          ),
+          DEFAULT_METRICS_INTERVAL_SECONDS,
+        ),
+      }),
+      {},
+    ),
     // Run each job in a fresh VM of its own, cloned from `image`, instead
     // of on this machine.
     vm: v.optional(
@@ -70,13 +98,15 @@ const ConfigSchema = v.pipe(
       }),
     ),
   }),
-  v.transform(({ plane: { poll_interval, ...plane }, agent, vm }) => ({
+  v.transform(({ plane: { poll_interval, ...plane }, agent, metrics, vm }) => ({
     plane: {
       ...plane,
       // Milliseconds between polls.
       pollInterval: poll_interval * 1000,
     },
     dataDir: agent.data_dir ?? defaultDataDir(),
+    // Milliseconds between metrics readings, or none if not reported.
+    metricsInterval: metrics.enabled ? metrics.interval * 1000 : undefined,
     vm,
   })),
 )

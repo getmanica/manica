@@ -16,6 +16,13 @@ token = "mna_..."
 # Windows).
 # data_dir = "/var/lib/manica"
 
+# Report this machine's CPU, memory and disk use (of the volume data_dir is
+# on) to the plane, which charts it on the Agents page.
+# [metrics]
+# enabled = true
+# Seconds between readings (15 to 600).
+# interval = 30
+
 # Run each job in a fresh macOS VM of its own, cloned from a stopped "golden"
 # VM, and deleted afterwards, instead of on this machine as this user. Needs
 # an Apple silicon Mac and the backend's CLI installed; macOS runs at most 2

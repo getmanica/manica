@@ -32,3 +32,19 @@ test('the image can’t be named like the VMs jobs run in', async () => {
     load('[vm]\nbackend = "lima"\nimage = "manica-runner-golden"\n'),
   ).rejects.toThrow("vm.image: can't start with manica-runner-")
 })
+
+test('[metrics] is off unless enabled', async () => {
+  expect((await load('')).metricsInterval).toBeUndefined()
+  expect(
+    (await load('[metrics]\ninterval = 60\n')).metricsInterval,
+  ).toBeUndefined()
+  expect((await load('[metrics]\nenabled = true\n')).metricsInterval).toBe(
+    30_000,
+  )
+  expect(
+    (await load('[metrics]\nenabled = true\ninterval = 60\n')).metricsInterval,
+  ).toBe(60_000)
+  await expect(
+    load('[metrics]\nenabled = true\ninterval = 5\n'),
+  ).rejects.toThrow('metrics.interval: must be at least 15 seconds')
+})
