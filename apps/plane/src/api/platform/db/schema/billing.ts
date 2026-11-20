@@ -102,3 +102,27 @@ export const planPrice = pgTable(
   },
   (table) => [index('plan_price_planId_idx').on(table.planId)],
 )
+
+// A plan an admin gave a user for free, in place of the default plan: until
+// `expiresAt`, or for good without. One per user, granting again replaces
+// it; revoking deletes it, an expired one is kept until then. Only for users
+// without a subscription (see `billing/grants.service`). A granted plan
+// can't be deleted, but disabling it keeps the grant.
+export const planGrant = pgTable(
+  'plan_grant',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    planId: text('plan_id')
+      .notNull()
+      .references(() => plan.id),
+    expiresAt: timestamp('expires_at'),
+    reason: text('reason'),
+    grantedBy: text('granted_by').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [index('plan_grant_planId_idx').on(table.planId)],
+)

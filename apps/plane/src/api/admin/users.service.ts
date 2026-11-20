@@ -1,5 +1,6 @@
 import {
   type AnyColumn,
+  and,
   asc,
   count,
   eq,
@@ -12,9 +13,18 @@ import type { UserSort } from '../../shared/pagination'
 import { bannedNow } from '../auth/bans'
 import { billingService } from '../billing/billing.service'
 import { BillingCancelFailedError } from '../billing/errors'
+import { type GrantInput, grantsService } from '../billing/grants.service'
+import { grantHolds } from '../billing/limits'
 import { organizationsService } from '../organizations/organizations.service'
 import { db } from '../platform/db'
-import { member, organization, session, user } from '../platform/db/schema'
+import {
+  member,
+  organization,
+  plan,
+  planGrant,
+  session,
+  user,
+} from '../platform/db/schema'
 import {
   containing,
   filterText,
@@ -43,8 +53,8 @@ const sorts: Record<UserSort, SQL | AnyColumn> = {
 export const adminUsersService = {
   // A page of the plane's users, newest first unless sorted otherwise: only
   // those whose name or email contain the filter text. Each with how many
-  // organizations they're in, and whether they're banned now (an expired
-  // ban isn't one).
+  // organizations they're in, whether they're banned now (an expired ban
+  // isn't one), and the plan they were granted, while it holds.
   async list({
     sort = 'createdAt',
     dir = 'desc',
@@ -75,10 +85,15 @@ export const adminUsersService = {
           banReason: user.banReason,
           banExpires: user.banExpires,
           organizations: sql<number>`coalesce(${memberships.count}, 0)::int`,
+          grantPlanId: planGrant.planId,
+          grantPlanName: plan.name,
+          grantExpiresAt: planGrant.expiresAt,
           createdAt: user.createdAt,
         })
         .from(user)
         .leftJoin(memberships, eq(memberships.userId, user.id))
+        .leftJoin(planGrant, and(eq(planGrant.userId, user.id), grantHolds))
+        .leftJoin(plan, eq(plan.id, planGrant.planId))
         .where(where)
         .orderBy(...sortBy(sorts[sort], dir, user.id))
         .limit(limit)
@@ -86,9 +101,20 @@ export const adminUsersService = {
       db.$count(user, where),
     ])
     return {
-      items: items.map((item) =>
-        // A lifted or expired ban's reason and expiry are history.
-        item.banned ? item : { ...item, banReason: null, banExpires: null },
+      items: items.map(
+        ({ grantPlanId, grantPlanName, grantExpiresAt, ...item }) => ({
+          ...item,
+          // A lifted or expired ban's reason and expiry are history.
+          ...(item.banned ? {} : { banReason: null, banExpires: null }),
+          grant:
+            grantPlanId && grantPlanName
+              ? {
+                  planId: grantPlanId,
+                  plan: grantPlanName,
+                  expiresAt: grantExpiresAt,
+                }
+              : null,
+        }),
       ),
       total,
     }
@@ -133,6 +159,16 @@ export const adminUsersService = {
       await tx.delete(user).where(eq(user.id, userId))
       return { id: userId }
     })
+  },
+
+  // Grants the user a plan for free (see `billing/grants.service`).
+  async grantPlan(adminId: string, userId: string, input: GrantInput) {
+    const [found] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, userId))
+    if (!found) return new UserNotFoundError()
+    return grantsService.grant(adminId, userId, input)
   },
 
   // Bans the user, for `expiresIn` seconds or until unbanned, and signs them

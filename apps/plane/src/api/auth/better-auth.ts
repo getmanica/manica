@@ -18,9 +18,11 @@ import { billingService } from '../billing/billing.service'
 import {
   AlreadySubscribedError,
   PaymentOverdueError,
+  PlanGrantedError,
   PlanUnavailableError,
   ScheduledChangeError,
 } from '../billing/errors'
+import { grantsService } from '../billing/grants.service'
 import { limitsService } from '../billing/limits'
 import { plansService } from '../billing/plans.service'
 import { stripeApi } from '../billing/stripe'
@@ -274,7 +276,8 @@ export const auth = betterAuth({
   hooks: {
     // Nobody sets their own Stripe customer. Disabled plans keep their
     // subscribers, but take no new ones; a user
-    // with a payment overdue settles it before changing plans; and a new
+    // with a payment overdue settles it before changing plans, and one an
+    // admin granted a plan doesn't subscribe on top of it; and a new
     // checkout replaces any the user left open, so only one can be paid.
     // Invitations are refused in a disabled organization, resent ones too
     // (resending skips `beforeCreateInvitation`).
@@ -308,6 +311,10 @@ export const auth = betterAuth({
       if (await overdue(session.user.id)) {
         throw refusal(new PaymentOverdueError(), 'PAYMENT_REQUIRED')
       }
+      // A user is on a granted plan or a paid one, never both.
+      if (await grantsService.current(session.user.id)) {
+        throw refusal(new PlanGrantedError(), 'BAD_REQUEST')
+      }
       // Subscribers change plans through plane (see `billing.service`):
       // the plugin would send them to a Stripe portal set up to allow it.
       // Stripe is asked too, for a paid checkout plane didn't hear of.
@@ -323,6 +330,15 @@ export const auth = betterAuth({
         throw refusal(new ScheduledChangeError(), 'BAD_REQUEST')
       }
       await billingService.expireOpenCheckouts(session.user.id)
+    }),
+    // A checkout opened as an admin granted the user a plan doesn't stay
+    // payable (see `grantsService.expireCheckoutsIfGranted`).
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/subscription/upgrade') return
+      const session = await getSessionFromCtx(ctx)
+      if (session) {
+        await grantsService.expireCheckoutsIfGranted(session.user.id)
+      }
     }),
   },
   databaseHooks: {

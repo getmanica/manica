@@ -1,0 +1,323 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "4c865a94-07d5-48f4-8071-930f183b0be5",
+  "prevIds": [
+    "ebdb6a4d-1012-45de-aaa4-f856605425ed"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan_grant"
+      ],
+      "writes": [
+        "s|tbl|public.plan_grant",
+        "n|tbl|public.plan_grant",
+        "e|tbl|public.plan_grant",
+        "n|rel|public.plan_grant",
+        "n|type|public.plan_grant",
+        "n|rel|public.plan_grant_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "plan_grant",
+        "plan_grant_planId_idx"
+      ],
+      "writes": [
+        "s|idx|public.plan_grant_planId_idx",
+        "n|idx|public.plan_grant_planId_idx",
+        "e|idx|public.plan_grant_planId_idx",
+        "n|rel|public.plan_grant_planId_idx"
+      ],
+      "reads": [
+        "n|tbl|public.plan_grant",
+        "n|sch|public",
+        "n|col|public.plan_grant.plan_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan_grant"
+      ],
+      "writes": [
+        "s|fk|public.plan_grant.plan_grant_user_id_user_id_fkey",
+        "n|fk|public.plan_grant.plan_grant_user_id_user_id_fkey",
+        "e|fk|public.plan_grant.plan_grant_user_id_user_id_fkey",
+        "n|con|public.plan_grant.plan_grant_user_id_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.plan_grant",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.plan_grant.user_id",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan_grant"
+      ],
+      "writes": [
+        "s|fk|public.plan_grant.plan_grant_plan_id_plan_id_fkey",
+        "n|fk|public.plan_grant.plan_grant_plan_id_plan_id_fkey",
+        "e|fk|public.plan_grant.plan_grant_plan_id_plan_id_fkey",
+        "n|con|public.plan_grant.plan_grant_plan_id_plan_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.plan_grant",
+        "n|sch|public",
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|col|public.plan_grant.plan_id",
+        "n|col|public.plan.id",
+        "e|uniqueness|public.plan.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan_grant"
+      ],
+      "writes": [
+        "s|fk|public.plan_grant.plan_grant_granted_by_user_id_fkey",
+        "n|fk|public.plan_grant.plan_grant_granted_by_user_id_fkey",
+        "e|fk|public.plan_grant.plan_grant_granted_by_user_id_fkey",
+        "n|con|public.plan_grant.plan_grant_granted_by_user_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.plan_grant",
+        "n|sch|public",
+        "n|tbl|public.user",
+        "n|sch|public",
+        "n|col|public.plan_grant.granted_by",
+        "n|col|public.user.id",
+        "e|uniqueness|public.user.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "plan_grant",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "user_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "expires_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "granted_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "created_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_grant_planId_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "plan_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_grant_user_id_user_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_grant_plan_id_plan_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "plan_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "plan",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_grant_granted_by_user_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "granted_by"
+        ],
+        "schemaTo": "public",
+        "tableTo": "user",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "SET NULL",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan_grant",
+        "name": "plan_grant_pkey",
+        "columns": [
+          "user_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

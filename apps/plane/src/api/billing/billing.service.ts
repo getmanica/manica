@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNotNull, notInArray } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { db } from '../platform/db'
-import { subscription, user } from '../platform/db/schema'
+import { plan, planGrant, subscription, user } from '../platform/db/schema'
 import { env } from '../platform/env'
 import {
   BillingCancelFailedError,
@@ -10,7 +10,7 @@ import {
   PaymentOverdueError,
   PlanUnavailableError,
 } from './errors'
-import { holdingStatuses, limitsService, type Plan } from './limits'
+import { grantHolds, holdingStatuses, limitsService, type Plan } from './limits'
 import { plansService } from './plans.service'
 import { stripeApi } from './stripe'
 
@@ -118,43 +118,57 @@ export const billingService = {
   // The user's billing: the plan they're on, what they use of it, the
   // subscription that gives it them, the plans they can switch to, and
   // which of their organizations, agents and forge apps are disabled for
-  // being past it. `portal` is whether they're a Stripe customer, who can
+  // being past it. `grant` is the plan an admin gave them, if they're on
+  // one: they can't subscribe meanwhile. `portal` is whether they're a Stripe customer, who can
   // manage payment and invoices whatever their subscription's state.
   async summary(userId: string) {
     if (!env.stripe) return { enabled: false as const }
-    const [current, usage, plans, resources, [subscribed], [customer]] =
-      await Promise.all([
-        limitsService.planFor(userId),
-        limitsService.usage(userId),
-        plansService.available(),
-        limitsService.resources(userId),
-        db
-          .select({
-            plan: subscription.plan,
-            status: subscription.status,
-            billingInterval: subscription.billingInterval,
-            periodEnd: subscription.periodEnd,
-            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-            cancelAt: subscription.cancelAt,
-          })
-          .from(subscription)
-          .where(
-            and(
-              eq(subscription.referenceId, userId),
-              inArray(subscription.status, [...holdingStatuses]),
-            ),
-          )
-          .orderBy(desc(subscription.periodStart))
-          .limit(1),
-        db
-          .select({ stripeCustomerId: user.stripeCustomerId })
-          .from(user)
-          .where(eq(user.id, userId)),
-      ])
+    const [
+      current,
+      usage,
+      plans,
+      resources,
+      [subscribed],
+      [customer],
+      [granted],
+    ] = await Promise.all([
+      limitsService.planFor(userId),
+      limitsService.usage(userId),
+      plansService.available(),
+      limitsService.resources(userId),
+      db
+        .select({
+          plan: subscription.plan,
+          status: subscription.status,
+          billingInterval: subscription.billingInterval,
+          periodEnd: subscription.periodEnd,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          cancelAt: subscription.cancelAt,
+        })
+        .from(subscription)
+        .where(
+          and(
+            eq(subscription.referenceId, userId),
+            inArray(subscription.status, [...holdingStatuses]),
+          ),
+        )
+        .orderBy(desc(subscription.periodStart))
+        .limit(1),
+      db
+        .select({ stripeCustomerId: user.stripeCustomerId })
+        .from(user)
+        .where(eq(user.id, userId)),
+      db
+        .select({ planId: planGrant.planId, expiresAt: planGrant.expiresAt })
+        .from(planGrant)
+        .innerJoin(plan, eq(plan.id, planGrant.planId))
+        .where(and(eq(planGrant.userId, userId), grantHolds)),
+    ])
     return {
       enabled: true as const,
       plan: current ? await publicPlan(current) : null,
       subscription: subscribed ?? null,
+      grant: granted ?? null,
       portal: !!customer?.stripeCustomerId,
       usage,
       plans: await Promise.all(plans.map(publicPlan)),
@@ -164,7 +178,8 @@ export const billingService = {
 
   // Expires the checkouts the user left open: starting another, or leaving
   // for good, would otherwise leave them payable, each a subscription of its
-  // own.
+  // own. One another request expired meanwhile is left be (Stripe refuses
+  // to expire it again); one completed meanwhile still throws: it was paid.
   async expireOpenCheckouts(userId: string) {
     const stripe = stripeApi.client
     if (!stripe) return
@@ -174,7 +189,12 @@ export const billingService = {
       customer: customerId,
       status: 'open',
     })) {
-      await stripe.checkout.sessions.expire(session.id)
+      try {
+        await stripe.checkout.sessions.expire(session.id)
+      } catch (error) {
+        const now = await stripe.checkout.sessions.retrieve(session.id)
+        if (now.status !== 'expired') throw error
+      }
     }
   },
 

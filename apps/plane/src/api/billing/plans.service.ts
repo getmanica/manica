@@ -12,7 +12,13 @@ import {
 } from 'drizzle-orm'
 import { db, type Transaction } from '../platform/db'
 import { isCheckViolation, isUniqueViolation } from '../platform/db/errors'
-import { plan, planPrice, subscription, user } from '../platform/db/schema'
+import {
+  plan,
+  planGrant,
+  planPrice,
+  subscription,
+  user,
+} from '../platform/db/schema'
 import { env } from '../platform/env'
 import {
   CheckoutsNotExpiredError,
@@ -24,7 +30,7 @@ import {
   PlanPricesInvalidError,
   PlanPriceTakenError,
 } from './errors'
-import { limitsService, type Plan } from './limits'
+import { grantHolds, limitsService, type Plan } from './limits'
 import { stripeApi } from './stripe'
 
 export type PlanInput = {
@@ -356,10 +362,11 @@ export const plansService = {
     }
   },
 
-  // Refused for the default plan, and for plans a subscription that isn't
-  // over refers to: one being checked out too, or paying for it would
-  // subscribe to a plan the plugin no longer knows. Resolves to nothing once
-  // deleted.
+  // Refused for the default plan, for plans a subscription that isn't over
+  // refers to (one being checked out too, or paying for it would subscribe
+  // to a plan the plugin no longer knows), and for plans granted to someone,
+  // until it expires: expired grants go with the plan. Resolves to nothing
+  // once deleted.
   delete: async (id: string) => {
     await plansService.releaseAbandonedCheckouts(id)
     return db.transaction(async (tx) => {
@@ -381,6 +388,13 @@ export const plansService = {
         )
         .limit(1)
       if (held) return new PlanInUseError()
+      const [granted] = await tx
+        .select({ userId: planGrant.userId })
+        .from(planGrant)
+        .where(and(eq(planGrant.planId, id), grantHolds))
+        .limit(1)
+      if (granted) return new PlanInUseError()
+      await tx.delete(planGrant).where(eq(planGrant.planId, id))
       await tx.delete(plan).where(eq(plan.id, id))
     })
   },

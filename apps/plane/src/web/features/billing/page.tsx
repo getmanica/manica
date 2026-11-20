@@ -43,7 +43,12 @@ const limits = Object.keys(limitLabels) as Limit[]
 // Where Stripe sends the user back to.
 const here = () => `${window.location.origin}/billing`
 
-const subscriptionLine = ({ subscription }: EnabledBilling) => {
+const subscriptionLine = ({ subscription, grant }: EnabledBilling) => {
+  if (grant) {
+    return grant.expiresAt
+      ? `Granted by an admin until ${formatDate(grant.expiresAt)}.`
+      : 'Granted by an admin.'
+  }
   if (!subscription) return 'No subscription: you are on the free plan.'
   if (subscription.status === 'past_due') {
     return 'Your last payment failed: update your payment method to keep your plan.'
@@ -129,12 +134,15 @@ const PlanCard = ({
   plan,
   annual,
   current,
+  granted,
   subscribed,
   onError,
 }: {
   plan: BillingPlan
   annual: boolean
   current: boolean
+  // On a plan an admin granted: no subscribing meanwhile.
+  granted: boolean
   // Has a subscription to switch, rather than one to start.
   subscribed: boolean
   onError: (message: string) => void
@@ -198,17 +206,19 @@ const PlanCard = ({
       <CardFooter>
         <Button
           className="w-full"
-          disabled={current || !offered || pending}
+          disabled={current || granted || !offered || pending}
           onClick={subscribe}
         >
           {pending && <Spinner data-icon="inline-start" />}
           {current
             ? 'Current plan'
-            : offered
-              ? subscribed
-                ? 'Switch to this plan'
-                : 'Choose plan'
-              : `Not offered ${annual ? 'yearly' : 'monthly'}`}
+            : granted
+              ? 'Unavailable while granted'
+              : offered
+                ? subscribed
+                  ? 'Switch to this plan'
+                  : 'Choose plan'
+                : `Not offered ${annual ? 'yearly' : 'monthly'}`}
         </Button>
       </CardFooter>
     </Card>
@@ -258,6 +268,7 @@ const Plans = ({ billing }: { billing: EnabledBilling }) => {
               billing.plan?.id === plan.id &&
               (billing.subscription.billingInterval === 'year') === annual
             }
+            granted={!!billing.grant}
             subscribed={
               billing.subscription?.status === 'active' ||
               billing.subscription?.status === 'trialing'
