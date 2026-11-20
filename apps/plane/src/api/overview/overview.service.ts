@@ -4,13 +4,10 @@ import {
   overviewBuckets,
   overviewRangeLength,
 } from '../../shared/job-ranges'
+import { firstBucket, timestamp } from '../platform/buckets'
 import { db } from '../platform/db'
 import { agent, job, liveStates, runner } from '../platform/db/schema'
 import { LEASE_MS } from '../runners/runners.service'
-
-// Stored timestamps are UTC without a zone, as drizzle writes them; casting an
-// ISO string drops its `Z` without shifting it.
-const timestamp = (date: Date) => sql`${date.toISOString()}::timestamp`
 
 const seconds = (from: unknown, to: unknown) =>
   sql`extract(epoch from ${to} - ${from})`
@@ -45,20 +42,6 @@ const periodStats = async (organizationId: string, from: Date, to: Date) => {
       ),
     )
   return stats ?? { jobs: 0, runTime: null, queueWait: null }
-}
-
-// The first of `count` bars of `size` ending with the one `now` falls in.
-// Bars start on the viewer's clock (`utcOffset` minutes ahead of UTC), so
-// day bars start at their midnight.
-export const firstBucket = (
-  now: Date,
-  size: number,
-  count: number,
-  utcOffset: number,
-) => {
-  const offset = utcOffset * 60 * 1000
-  const current = Math.floor((now.getTime() + offset) / size) * size - offset
-  return new Date(current - (count - 1) * size)
 }
 
 // Finished jobs per bar, by how they ended.

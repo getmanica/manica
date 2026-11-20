@@ -5,6 +5,7 @@ import { type Config, defaultConfigDir, loadConfig } from './config'
 import { diagnose, formatSections, healthy } from './doctor'
 import { AgentError, UsageError } from './errors'
 import { reportExit, runLive } from './live'
+import { createSampler } from './metrics'
 import { createPlane } from './plane'
 import { createLocalHost } from './runner/host'
 import { createInstaller } from './runner/install'
@@ -70,10 +71,15 @@ const main = async () => {
     host: await createHost(config),
     report: reportExit(plane),
   })
-  await runLive(config, plane, supervisor, {
-    drain: drain.signal,
-    stop: stop.signal,
-  })
+  await runLive(
+    config,
+    plane,
+    supervisor,
+    { drain: drain.signal, stop: stop.signal },
+    config.metricsInterval === undefined
+      ? undefined
+      : createSampler(config.dataDir),
+  )
 }
 
 try {

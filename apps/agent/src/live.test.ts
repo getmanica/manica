@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import type { Config } from './config'
 import { TokenRejectedError } from './errors'
 import { runLive } from './live'
+import type { Metrics } from './metrics'
 import type { Plane } from './plane'
 import type { Supervisor } from './runner/supervisor'
 import { version } from './version'
@@ -9,12 +10,18 @@ import { version } from './version'
 const config = {
   plane: { url: new URL('http://plane.test'), token: 'mna_x', pollInterval: 1 },
   dataDir: '/unused',
+  metricsInterval: undefined,
   vm: undefined,
 } satisfies Config
 
 const build = { version: '1.0.0', url: 'unused', sha256: 'unused' }
 
-type Poll = { version: string; accepting: boolean; runners: string[] }
+type Poll = {
+  version: string
+  accepting: boolean
+  runners: string[]
+  metrics?: Metrics
+}
 type PollReply = {
   start: { id: string; name: string; config: string }[]
   cancel: string[]
@@ -137,4 +144,54 @@ test('gives up on a rejected token', async () => {
   await expect(
     runLive(config, plane, supervisor, signals),
   ).rejects.toBeInstanceOf(TokenRejectedError)
+})
+
+test('reports metrics once every metrics interval, when enabled', async () => {
+  const { plane, polls } = fakePlane([])
+  const { supervisor } = fakeSupervisor()
+  const { drain, signals } = shutdown()
+  const reading = {
+    cpu: 0.5,
+    memoryUsed: 1,
+    memoryTotal: 2,
+    diskUsed: 3,
+    diskTotal: 4,
+  }
+  let readings = 0
+  const sample = async () => {
+    readings++
+    // A failed reading is skipped.
+    if (readings === 2) throw new Error('vm_stat failed')
+    return reading
+  }
+  const live = runLive(
+    { ...config, metricsInterval: 30 },
+    plane,
+    supervisor,
+    signals,
+    sample,
+  )
+  while (readings < 3) await Bun.sleep(5)
+  drain.abort()
+  await live
+
+  // None in the first interval: CPU use is measured over it.
+  expect(polls[0]?.metrics).toBeUndefined()
+  const reported = polls.filter((poll) => poll.metrics)
+  expect(reported).toHaveLength(2)
+  expect(reported[0]?.metrics).toEqual(reading)
+  expect(polls.length).toBeGreaterThan(readings)
+})
+
+test('reports no metrics unless enabled', async () => {
+  const { plane, polls } = fakePlane([])
+  const { supervisor } = fakeSupervisor()
+  const { drain, signals } = shutdown()
+  const live = runLive(config, plane, supervisor, signals, async () => {
+    throw new Error('read while disabled')
+  })
+  while (polls.length < 3) await Bun.sleep(5)
+  drain.abort()
+  await live
+  expect(polls.every((poll) => poll.metrics === undefined)).toBe(true)
 })

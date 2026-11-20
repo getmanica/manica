@@ -7,6 +7,7 @@ import {
   ListChecksIcon,
   PlugIcon,
   ServerIcon,
+  SettingsIcon,
   TagIcon,
   UsersIcon,
 } from 'lucide-react'
@@ -40,6 +41,12 @@ const nav = [
   { to: '/forge-apps', label: 'Forge apps', icon: PlugIcon },
 ] as const
 
+const settingsNav = {
+  to: '/settings',
+  label: 'Settings',
+  icon: SettingsIcon,
+} as const
+
 // Only when the plane has billing (see `features/billing`).
 const billingNav = {
   to: '/billing',
@@ -57,7 +64,11 @@ const NavItem = ({
   to,
   label,
   icon: Icon,
-}: (typeof nav)[number] | (typeof adminNav)[number] | typeof billingNav) => {
+}:
+  | (typeof nav)[number]
+  | (typeof adminNav)[number]
+  | typeof billingNav
+  | typeof settingsNav) => {
   // Nested pages (e.g. `/forge-apps/setup/success`) keep their section active.
   const active = !!useMatchRoute()({ to, fuzzy: to !== '/' })
   return (
@@ -90,6 +101,7 @@ const AppSidebar = () => {
               <NavItem key={item.to} {...item} />
             ))}
             {billing?.enabled && <NavItem {...billingNav} />}
+            <NavItem {...settingsNav} />
           </SidebarMenu>
         </SidebarGroup>
         {isAdmin(session?.user.role) && (

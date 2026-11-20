@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-// A card of the profile page: what it's about on the left, its controls on
-// the right (stacked on narrow screens).
-export const ProfileSection = ({
+// A card of a settings page (the profile, the organization's settings): what
+// it's about on the left, its controls on the right (stacked on narrow
+// screens).
+export const SettingsSection = ({
   icon: Icon,
   title,
   description,
@@ -17,7 +18,7 @@ export const ProfileSection = ({
   children: ReactNode
 }) => (
   <section
-    aria-labelledby={`profile-${title}`}
+    aria-labelledby={`section-${title}`}
     className="grid gap-6 rounded-xl bg-card p-6 text-card-foreground ring-1 ring-foreground/10 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] md:gap-8"
   >
     <div className="flex items-start gap-4">
@@ -31,7 +32,7 @@ export const ProfileSection = ({
         <Icon className="size-5" />
       </span>
       <div className="flex flex-col gap-1">
-        <h2 id={`profile-${title}`} className="font-medium">
+        <h2 id={`section-${title}`} className="font-medium">
           {title}
         </h2>
         <p className="text-muted-foreground text-sm">{description}</p>

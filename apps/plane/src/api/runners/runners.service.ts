@@ -11,6 +11,10 @@ import {
 import { agentLabelSet } from '../../shared/labels'
 import type { AgentArch, AgentOs } from '../../shared/platform'
 import { AgentNotFoundError } from '../agents/errors'
+import {
+  agentMetricsService,
+  type MetricsReading,
+} from '../agents/metrics.service'
 import { activeAgent, activeForgeApp } from '../billing/limits'
 import { appContext } from '../forges/context'
 import type { Forge } from '../forges/forge'
@@ -47,6 +51,9 @@ export type PollInput = {
   // The runners the agent holds: starting, running, or exited but not yet
   // reported.
   runners: string[]
+  // The agent machine's resources, if it reports them, at most every so
+  // often.
+  metrics?: MetricsReading
 }
 
 export type PollResult = {
@@ -85,6 +92,9 @@ export const createRunnersService = (
         .update(agent)
         .set({ lastSeenAt: now, version: input.version ?? null })
         .where(eq(agent.id, agentId))
+      if (input.metrics) {
+        await agentMetricsService.record(tx, agentId, input.metrics, now)
+      }
 
       const held = new Set(input.runners)
       const known = await tx

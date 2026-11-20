@@ -20,6 +20,7 @@ import { Route as SignedInAgentsRouteImport } from './routes/_signedIn/agents'
 import { Route as SignedInBillingRouteImport } from './routes/_signedIn/billing'
 import { Route as SignedInJobsRouteImport } from './routes/_signedIn/jobs'
 import { Route as SignedInProfileRouteImport } from './routes/_signedIn/profile'
+import { Route as SignedInSettingsRouteImport } from './routes/_signedIn/settings'
 import { Route as SignedOutLoginRouteImport } from './routes/_signedOut/login'
 import { Route as SignedOutSignupRouteImport } from './routes/_signedOut/signup'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
@@ -83,6 +84,11 @@ const SignedInProfileRoute = SignedInProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => SignedInRoute,
 } as any)
+const SignedInSettingsRoute = SignedInSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => SignedInRoute,
+} as any)
 const SignedOutLoginRoute = SignedOutLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/billing': typeof SignedInBillingRoute
   '/jobs': typeof SignedInJobsRoute
   '/profile': typeof SignedInProfileRoute
+  '/settings': typeof SignedInSettingsRoute
   '/login': typeof SignedOutLoginRoute
   '/signup': typeof SignedOutSignupRoute
   '/api/$': typeof ApiSplatRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/billing': typeof SignedInBillingRoute
   '/jobs': typeof SignedInJobsRoute
   '/profile': typeof SignedInProfileRoute
+  '/settings': typeof SignedInSettingsRoute
   '/login': typeof SignedOutLoginRoute
   '/signup': typeof SignedOutSignupRoute
   '/api/$': typeof ApiSplatRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_signedIn/billing': typeof SignedInBillingRoute
   '/_signedIn/jobs': typeof SignedInJobsRoute
   '/_signedIn/profile': typeof SignedInProfileRoute
+  '/_signedIn/settings': typeof SignedInSettingsRoute
   '/_signedOut/login': typeof SignedOutLoginRoute
   '/_signedOut/signup': typeof SignedOutSignupRoute
   '/api/$': typeof ApiSplatRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/jobs'
     | '/profile'
+    | '/settings'
     | '/login'
     | '/signup'
     | '/api/$'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/jobs'
     | '/profile'
+    | '/settings'
     | '/login'
     | '/signup'
     | '/api/$'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/_signedIn/billing'
     | '/_signedIn/jobs'
     | '/_signedIn/profile'
+    | '/_signedIn/settings'
     | '/_signedOut/login'
     | '/_signedOut/signup'
     | '/api/$'
@@ -345,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignedInProfileRouteImport
       parentRoute: typeof SignedInRoute
     }
+    '/_signedIn/settings': {
+      id: '/_signedIn/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SignedInSettingsRouteImport
+      parentRoute: typeof SignedInRoute
+    }
     '/_signedOut/login': {
       id: '/_signedOut/login'
       path: '/login'
@@ -433,6 +452,7 @@ interface SignedInRouteChildren {
   SignedInBillingRoute: typeof SignedInBillingRoute
   SignedInJobsRoute: typeof SignedInJobsRoute
   SignedInProfileRoute: typeof SignedInProfileRoute
+  SignedInSettingsRoute: typeof SignedInSettingsRoute
   SignedInIndexRoute: typeof SignedInIndexRoute
   SignedInForgeAppsIndexRoute: typeof SignedInForgeAppsIndexRoute
   SignedInForgeAppsSetupErrorRoute: typeof SignedInForgeAppsSetupErrorRoute
@@ -445,6 +465,7 @@ const SignedInRouteChildren: SignedInRouteChildren = {
   SignedInBillingRoute: SignedInBillingRoute,
   SignedInJobsRoute: SignedInJobsRoute,
   SignedInProfileRoute: SignedInProfileRoute,
+  SignedInSettingsRoute: SignedInSettingsRoute,
   SignedInIndexRoute: SignedInIndexRoute,
   SignedInForgeAppsIndexRoute: SignedInForgeAppsIndexRoute,
   SignedInForgeAppsSetupErrorRoute: SignedInForgeAppsSetupErrorRoute,

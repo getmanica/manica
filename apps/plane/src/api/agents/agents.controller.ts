@@ -1,9 +1,11 @@
 import { Elysia, t } from 'elysia'
+import { metricRanges } from '../../shared/metric-ranges'
 import { agentSorts } from '../../shared/pagination'
 import { platformKeys } from '../../shared/platform'
 import { authMacro } from '../auth/session'
 import { listQuery } from '../platform/pagination'
 import { agentsService } from './agents.service'
+import { agentMetricsService } from './metrics.service'
 import { agentFields, manageAgents as manage } from './schema'
 
 const { name, os, arch, slots, labels } = agentFields
@@ -22,6 +24,22 @@ export const agentsController = new Elysia({ prefix: '/agents' })
     },
     ({ organizationId, query: { platform, ...options } }) =>
       agentsService.list(organizationId, { ...options, platforms: platform }),
+  )
+  .get(
+    '/:id/metrics',
+    {
+      organization: true,
+      query: t.Object({
+        range: t.Optional(t.UnionEnum(metricRanges)),
+        // The viewer's clock, in minutes ahead of UTC, so the chart's points
+        // line up with it.
+        utcOffset: t.Optional(
+          t.Integer({ minimum: -14 * 60, maximum: 14 * 60 }),
+        ),
+      }),
+    },
+    ({ organizationId, params: { id }, query: { range = '24h', utcOffset } }) =>
+      agentMetricsService.history(organizationId, id, range, { utcOffset }),
   )
   .post(
     '/',

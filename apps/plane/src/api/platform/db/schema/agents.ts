@@ -1,9 +1,13 @@
 import { sql } from 'drizzle-orm'
 import {
+  bigint,
   check,
+  index,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
+  real,
   text,
   timestamp,
   unique,
@@ -53,5 +57,29 @@ export const agent = pgTable(
       table.name,
     ),
     check('agent_slots_positive', sql`${table.slots} > 0`),
+  ],
+)
+
+// A reading of an agent machine's resources, which agents report with their
+// polls when enabled in their config. `cpu` is the busy fraction (0 to 1) of
+// all its cores since its previous reading; the rest are bytes, disk being the
+// volume of the agent's data directory. Readings past their retention are
+// pruned (see `agents/metrics.service.ts`).
+export const agentMetric = pgTable(
+  'agent_metric',
+  {
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agent.id, { onDelete: 'cascade' }),
+    recordedAt: timestamp('recorded_at').notNull(),
+    cpu: real('cpu').notNull(),
+    memoryUsed: bigint('memory_used', { mode: 'number' }).notNull(),
+    memoryTotal: bigint('memory_total', { mode: 'number' }).notNull(),
+    diskUsed: bigint('disk_used', { mode: 'number' }).notNull(),
+    diskTotal: bigint('disk_total', { mode: 'number' }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.agentId, table.recordedAt] }),
+    index('agent_metric_recordedAt_idx').on(table.recordedAt),
   ],
 )

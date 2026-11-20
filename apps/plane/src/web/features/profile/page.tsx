@@ -13,7 +13,7 @@ import { Account } from '@/features/profile/account'
 import { Appearance } from '@/features/profile/appearance'
 import { DeleteAccountDialog } from '@/features/profile/delete-account-dialog'
 import { Passkeys } from '@/features/profile/passkeys'
-import { ProfileSection } from '@/features/profile/section'
+import { SettingsSection } from '@/components/settings-section'
 
 const DangerZone = () => {
   const [deleting, setDeleting] = useState(false)
@@ -37,42 +37,42 @@ export const Profile = () => (
     description="Manage your account, how you sign in, and how the console looks."
   >
     <div className="flex flex-col gap-6">
-      <ProfileSection
+      <SettingsSection
         icon={UserIcon}
         title="Account"
         description="Your name, email, and password."
       >
         <Account />
-      </ProfileSection>
-      <ProfileSection
+      </SettingsSection>
+      <SettingsSection
         icon={FingerprintIcon}
         title="Passkeys"
         description="Sign in with your fingerprint, face, or a security key instead of a password."
       >
         <Passkeys />
-      </ProfileSection>
-      <ProfileSection
+      </SettingsSection>
+      <SettingsSection
         icon={PlugIcon}
         title="Connected apps"
         description="MCP clients you let use an organization for you, like Claude Code or Cursor."
       >
         <ConnectedApps />
-      </ProfileSection>
-      <ProfileSection
+      </SettingsSection>
+      <SettingsSection
         icon={MonitorIcon}
         title="Appearance"
         description="How the console looks in this browser."
       >
         <Appearance />
-      </ProfileSection>
-      <ProfileSection
+      </SettingsSection>
+      <SettingsSection
         icon={Trash2Icon}
         title="Danger zone"
         description="Irreversible and destructive actions."
         destructive
       >
         <DangerZone />
-      </ProfileSection>
+      </SettingsSection>
     </div>
   </Page>
 )

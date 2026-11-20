@@ -1,5 +1,6 @@
 import type { Config } from './config'
 import { TokenRejectedError } from './errors'
+import type { Metrics, Sampler } from './metrics'
 import type { Plane } from './plane'
 import type { Supervisor } from './runner/supervisor'
 import { version } from './version'
@@ -63,18 +64,43 @@ const sleep = (ms: number, signal: AbortSignal) =>
 // running ones, `stop` stops them too.
 export type Shutdown = { drain: AbortSignal; stop: AbortSignal }
 
-// Polls the plane every poll interval: reports the runners it holds, starts
-// the ones the plane hands out, and stops the ones the plane gave up on.
-// Returns once shut down and every runner is done (and reported, while the
-// plane can be reached).
+// Reads metrics with `sample` once every metrics interval, from one interval
+// after it's made: a reading that fails is skipped, logged only if the one
+// before it didn't fail too.
+const metricsReader = (interval: number | undefined, sample?: Sampler) => {
+  if (interval === undefined || !sample) return async () => undefined
+  let next = Date.now() + interval
+  let failing = false
+  return async (): Promise<Metrics | undefined> => {
+    if (Date.now() < next) return undefined
+    next = Date.now() + interval
+    try {
+      const metrics = await sample()
+      failing = false
+      return metrics
+    } catch (error) {
+      if (!failing) console.error(`reading metrics failed: ${describe(error)}`)
+      failing = true
+      return undefined
+    }
+  }
+}
+
+// Polls the plane every poll interval: reports the runners it holds (and,
+// when enabled, this machine's metrics, read with `sample`), starts the ones
+// the plane hands out, and stops the ones the plane gave up on. Returns once
+// shut down and every runner is done (and reported, while the plane can be
+// reached).
 export const runLive = async (
   config: Config,
   plane: Plane,
   supervisor: Supervisor,
   shutdown: Shutdown,
+  sample?: Sampler,
 ) => {
   console.log(`connecting to ${config.plane.url.origin}`)
   await supervisor.clearStale()
+  const readMetrics = metricsReader(config.metricsInterval, sample)
 
   let connected = false
   let stopping = false
@@ -87,12 +113,14 @@ export const runLive = async (
     const accepting = !shutdown.drain.aborted
     if (!accepting && supervisor.idle) break
 
+    const metrics = await readMetrics()
     try {
       const polled = await call(() =>
         plane.agent.poll.post({
           version,
           accepting,
           runners: supervisor.held(),
+          ...(metrics && { metrics }),
         }),
       )
       if (!connected) console.log('connected')

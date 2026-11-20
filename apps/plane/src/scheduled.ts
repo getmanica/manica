@@ -1,3 +1,4 @@
+import { agentMetricsService } from './api/agents/metrics.service'
 import { billingService } from './api/billing/billing.service'
 import { limitsService } from './api/billing/limits'
 import { forges } from './api/forges/registry'
@@ -17,6 +18,9 @@ export const startScheduledTasks = () => {
     ),
     every('resync-stale-jobs', 60 * 1000, () => reconciler.resyncStale()),
     every('reap-runners', 15 * 1000, () => runReaper(reaper)),
+    every('prune-agent-metrics', 60 * 60 * 1000, () =>
+      agentMetricsService.prune(),
+    ),
     // Catches up on plan changes a missed Stripe webhook would have applied,
     // and with billing off, enables what an earlier plan disabled.
     every('reconcile-plan-limits', 15 * 60 * 1000, () =>

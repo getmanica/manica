@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from 'vitest'
 import { createAgent, createOrganization } from '../../../test/fixtures'
 import { db } from '../platform/db'
 import { job, runner } from '../platform/db/schema'
-import { firstBucket, overviewService } from './overview.service'
+import { overviewService } from './overview.service'
 
 const now = new Date('2026-10-31T12:30:00Z')
 const hoursAgo = (hours: number) =>
@@ -41,22 +41,6 @@ const insertJob = async (values: Partial<typeof job.$inferInsert> = {}) => {
 
 const get = () =>
   overviewService.get(org.organizationId, '24h', { now, utcOffset: 0 })
-
-describe('firstBucket', () => {
-  test('ends with the bar now falls in', () => {
-    expect(firstBucket(now, 60 * 60 * 1000, 24, 0)).toEqual(
-      new Date('2026-10-30T13:00:00Z'),
-    )
-  })
-
-  test("starts day bars at the viewer's midnight", () => {
-    const day = 24 * 60 * 60 * 1000
-    // 12:30 UTC is 14:30 two hours ahead: that day starts at 22:00 UTC.
-    expect(firstBucket(now, day, 1, 120)).toEqual(
-      new Date('2026-10-30T22:00:00Z'),
-    )
-  })
-})
 
 describe('stats', () => {
   test('compares the range with the one before it', async () => {
