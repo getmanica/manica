@@ -12,6 +12,8 @@ import { TableFilter } from '@/components/table-filter'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import { BanUserDialog } from '@/features/admin/ban-user-dialog'
 import { ConfirmUserActionDialog } from '@/features/admin/confirm-user-action-dialog'
+import { GrantPlanDialog } from '@/features/admin/grant-plan-dialog'
+import { plansQuery } from '@/features/admin/plans'
 import { type UserAction, UserActions } from '@/features/admin/user-actions'
 import { type AdminUser, usersKey, usersQuery } from '@/features/admin/users'
 import { userAvatar } from '@/lib/avatar'
@@ -92,6 +94,23 @@ const dataColumns = [
     header: 'Organizations',
     enableSorting: false,
   }),
+  column.accessor('grant', {
+    header: 'Granted plan',
+    enableSorting: false,
+    cell: ({ row: { original: user } }) =>
+      user.grant ? (
+        <div className="flex flex-col items-start gap-1">
+          <Badge tone="blue">{user.grant.plan}</Badge>
+          <span className="text-muted-foreground text-xs">
+            {user.grant.expiresAt
+              ? `Until ${formatDate(user.grant.expiresAt)}`
+              : 'Until revoked'}
+          </span>
+        </div>
+      ) : (
+        <span className="text-muted-foreground">None</span>
+      ),
+  }),
   column.accessor('createdAt', {
     header: 'Joined',
     sortDescFirst: true,
@@ -151,6 +170,13 @@ const UserList = () => {
     }),
   )
   const list = query.data
+  // Grantable plans: any but the default, while billing is on.
+  const plans = useQuery(plansQuery).data
+  const billing = !!plans?.billing
+  const grantable = useMemo(
+    () => plans?.items.filter((plan) => !plan.isDefault) ?? [],
+    [plans],
+  )
 
   // Refused: the viewer was signed out or demoted since the session was
   // read (by another admin, say). Reading it again runs the route guards,
@@ -181,6 +207,7 @@ const UserList = () => {
               <UserActions
                 user={row.original}
                 self={row.original.id === selfId}
+                billing={billing}
                 onAction={(action, user) => {
                   setTarget(user)
                   setDialog(action)
@@ -190,7 +217,7 @@ const UserList = () => {
           ),
         }),
       ]),
-    [selfId],
+    [selfId, billing],
   )
 
   const filtered = text.trim() !== ''
@@ -258,8 +285,21 @@ const UserList = () => {
         }
       />
       <BanUserDialog {...dialogProps('ban')} user={target} onBanned={refresh} />
+      <GrantPlanDialog
+        {...dialogProps('grant')}
+        user={target}
+        plans={grantable}
+        onGranted={refresh}
+      />
       {(
-        ['make-admin', 'remove-admin', 'unban', 'sign-out', 'remove'] as const
+        [
+          'make-admin',
+          'remove-admin',
+          'unban',
+          'sign-out',
+          'revoke-grant',
+          'remove',
+        ] as const
       ).map((action) => (
         <ConfirmUserActionDialog
           key={action}

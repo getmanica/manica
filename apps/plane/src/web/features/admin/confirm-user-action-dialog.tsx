@@ -16,7 +16,7 @@ import type { AdminUser } from '@/features/admin/users'
 import { api, errorDetail } from '@/lib/api'
 import { authClient } from '@/lib/auth'
 
-type Confirmed = Exclude<UserAction, 'ban'>
+type Confirmed = Exclude<UserAction, 'ban' | 'grant'>
 
 type BetterAuthResult = Promise<{ error: { message?: string } | null }>
 
@@ -59,6 +59,20 @@ const actions: Record<
       'Every browser they are signed in on is signed out. They can sign back in.',
     confirm: 'Sign out',
     run: (userId) => authClient.admin.revokeUserSessions({ userId }),
+  },
+  'revoke-grant': {
+    title: (user) => `Revoke ${user.name}'s granted plan?`,
+    description:
+      'They go back to the default plan at once: what goes past it is disabled, newest first. They can subscribe again.',
+    confirm: 'Revoke',
+    destructive: true,
+    run: (userId) =>
+      api.admin
+        .users({ id: userId })
+        .grant.delete()
+        .then(({ error }) => ({
+          error: error ? { message: errorDetail(error) } : null,
+        })),
   },
   remove: {
     title: (user) => `Remove ${user.name}?`,

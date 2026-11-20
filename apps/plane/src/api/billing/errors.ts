@@ -37,7 +37,7 @@ export class DefaultPlanRequiredError extends HTTPError.id(
 
 export class PlanInUseError extends HTTPError.id('PLAN_IN_USE', 409) {
   override readonly detail =
-    'Users are subscribed to this plan, or checking out: disable it instead, so nobody new subscribes'
+    'Users are subscribed to this plan, checking out, or were granted it: disable it instead, so nobody new subscribes'
 }
 
 export class PlanOrderInvalidError extends HTTPError.id(
@@ -137,4 +137,29 @@ export class AlreadySubscribedError extends HTTPError.id(
 ) {
   override readonly detail =
     'You already have a subscription: change its plan instead of subscribing again'
+}
+
+export class GrantForSubscriberError extends HTTPError.id(
+  'GRANT_FOR_SUBSCRIBER',
+  409,
+) {
+  override readonly detail =
+    'This user pays for a subscription: plans are only granted to users without one'
+}
+
+export class GrantPlanInvalidError extends HTTPError.id(
+  'GRANT_PLAN_INVALID',
+  400,
+) {
+  override readonly detail =
+    'Users without a plan are on the default plan already: grant another one'
+}
+
+export class GrantNotFoundError extends HTTPError.id('GRANT_NOT_FOUND', 404) {
+  override readonly detail = 'This user has no granted plan'
+}
+
+export class PlanGrantedError extends HTTPError.id('PLAN_GRANTED', 409) {
+  override readonly detail =
+    'An admin granted you your plan: ask them to revoke it before subscribing'
 }

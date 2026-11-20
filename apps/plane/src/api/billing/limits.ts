@@ -8,6 +8,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  or,
   sql,
 } from 'drizzle-orm'
 import { db, type Transaction } from '../platform/db'
@@ -18,6 +19,7 @@ import {
   organizationBilling,
   type PlanLimit,
   plan,
+  planGrant,
   subscription,
 } from '../platform/db/schema'
 import { env } from '../platform/env'
@@ -32,6 +34,13 @@ export type Plan = typeof plan.$inferSelect
 // Subscriptions that hold their plan: Stripe is still billing them, or
 // retrying a failed payment.
 export const holdingStatuses = ['active', 'trialing', 'past_due'] as const
+
+// Grants that hold: not expired. Timestamps are stored as UTC without a
+// time zone, so they're compared with UTC's now (see `auth/bans`).
+export const grantHolds = or(
+  isNull(planGrant.expiresAt),
+  sql`${planGrant.expiresAt} > (now() at time zone 'UTC')`,
+)
 
 // What a user may have, each across the organizations they're the billing
 // owner of: a maximum, or null for unlimited.
@@ -168,8 +177,8 @@ const billingOwnerOf = async (tx: Db, organizationId: string) => {
 
 export const limitsService = {
   // The plan the user is on: the one they're subscribed to while Stripe
-  // bills them (or retries a failed payment), else the default. Billing off,
-  // there's none.
+  // bills them (or retries a failed payment), else the one an admin granted
+  // them until it expires, else the default. Billing off, there's none.
   async planFor(userId: string, tx: Db = db): Promise<Plan | undefined> {
     if (!env.stripe) return undefined
     const [subscribed] = await tx
@@ -185,6 +194,12 @@ export const limitsService = {
       .orderBy(desc(subscription.periodStart))
       .limit(1)
     if (subscribed) return subscribed.plan
+    const [granted] = await tx
+      .select({ plan })
+      .from(planGrant)
+      .innerJoin(plan, eq(plan.id, planGrant.planId))
+      .where(and(eq(planGrant.userId, userId), grantHolds))
+    if (granted) return granted.plan
     const [fallback] = await tx
       .select()
       .from(plan)
