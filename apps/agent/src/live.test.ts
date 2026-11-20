@@ -9,6 +9,7 @@ import { version } from './version'
 const config = {
   plane: { url: new URL('http://plane.test'), token: 'mna_x', pollInterval: 1 },
   dataDir: '/unused',
+  vm: undefined,
 } satisfies Config
 
 const build = { version: '1.0.0', url: 'unused', sha256: 'unused' }

@@ -160,14 +160,83 @@ manica-agent
 | `plane.token`         |                         | The agent token from the console. `MANICA_AGENT_TOKEN` overrides it |
 | `plane.poll_interval` | `5`                     | Seconds between polls for jobs (1 to 20)                             |
 | `agent.data_dir`      | `$XDG_DATA_HOME/manica` | Where runner builds are downloaded and runners run                   |
+| `vm.backend`          |                         | Run each job in a VM, with this backend (`lima`). See [Running jobs in VMs](#running-jobs-in-vms-macos) |
+| `vm.image`            |                         | The stopped VM jobs are cloned from                                  |
 
 Unknown keys are rejected. The CLI options are:
 
 ```
+doctor                  Check the config, the plane, and which VM backends this machine can run jobs with, then exit
 -c, --config-dir <dir>  Directory holding config.toml (default: $XDG_CONFIG_HOME/manica)
 -h, --help              Show this help
 -v, --version           Show the version
 ```
+
+`manica-agent doctor` checks everything the agent needs without taking a job: that the config loads, that the plane takes the token, that the data directory is writable, and, for each VM backend, whether it's installed and whether the configured image can be cloned. It exits with 1 if jobs couldn't run. A backend the config doesn't use is reported but doesn't fail it.
+
+### Running jobs in VMs (macOS)
+
+By default jobs run on the agent's machine, as the agent's user. With a `[vm]` section, each job runs instead in a fresh macOS VM cloned from a golden VM you prepare, and the VM is deleted once the job is done: nothing a job does outlives it, and it can't read the host's files or the agent's token. The agent drives a VM tool you install; it doesn't ship one.
+
+Backends: `lima` ([Lima](https://lima-vm.io) 2.3 or later, which runs macOS guests on Apple silicon).
+
+macOS runs at most **2 VMs at once** per Mac (Virtualization.framework refuses a third, as Apple's license allows two), whichever tool started them, so give a VM agent at most 2 slots. Budget about 4 GB of RAM per VM: macOS guests under 3 GB may never boot.
+
+#### Preparing the golden VM (Lima)
+
+The golden VM is the stopped VM every job is cloned from: what's installed in it is what jobs get. Make it as the user the agent runs as (Lima keeps VMs in `~/.lima`, or `$LIMA_HOME`), on the Mac the agent runs on. Expect about 50 minutes the first time, mostly downloading Apple's restore image, and about 55 GB of disk: about 28 GB for the VM and 24 GB for the restore image, which Lima keeps in `~/Library/Caches/lima` (with it there, making the VM again takes about 5 minutes).
+
+1. Create and start it. Lima downloads the macOS restore image from Apple (checked against a pinned checksum), installs it, and boots it. Use at least 3 GB of memory: smaller macOS guests may never boot.
+
+   ```sh
+   limactl create --name=manica-golden --cpus=4 --memory=4 \
+     --set '.osOpts.Darwin.suppressFirstLoginSetup=true' template:macos
+   limactl start manica-golden
+   ```
+
+   `suppressFirstLoginSetup` (Lima 2.3+) skips the setup screens of the first login. `template:macos` is the newest macOS Lima knows; pin one with `template:macos-27`. It can't be newer than the host's macOS.
+
+2. Give the guest user password-less sudo, as GitHub's hosted runners have (many `setup-*` actions expect it). The VM is thrown away after each job, so this only reaches inside it. The user's password is in `~/password` in the guest:
+
+   ```sh
+   limactl shell manica-golden sh -c 'sudo -S -p "" sh -c "echo \"$(whoami) ALL=(ALL) NOPASSWD: ALL\" > /etc/sudoers.d/manica-jobs && chmod 440 /etc/sudoers.d/manica-jobs" < ~/password'
+   ```
+
+3. Install what your jobs need. The image is plain macOS: no developer tools, no Homebrew. The Command Line Tools (clang, git, make) install without a GUI with `softwareupdate`:
+
+   ```sh
+   limactl shell manica-golden sh -c '
+     sudo touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+     label=$(softwareupdate -l | sed -n "s/^\* Label: \(Command Line Tools.*\)$/\1/p" | tail -1)
+     sudo softwareupdate -i "$label"
+     sudo rm /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress'
+   ```
+
+   Install Xcode, Homebrew (or start from `template:homebrew-macos` in step 1), and anything else the same way you would on a Mac, from `limactl shell manica-golden`. Xcode is large: check the VM's disk (100 GB by default, allocated as used).
+
+4. Stop it. Jobs are cloned from it stopped:
+
+   ```sh
+   limactl stop manica-golden
+   ```
+
+5. Point the agent at it, and check:
+
+   ```toml
+   [vm]
+   backend = "lima"
+   image = "manica-golden"
+   ```
+
+   ```sh
+   manica-agent doctor
+   ```
+
+To update the golden VM later, let running jobs finish first (stop the agent once, which drains it): while it's started, jobs can't be cloned from it. Then start it, change what you need, stop it, and start the agent again.
+
+For each job, the agent clones the golden VM so that it shares nothing with the host or with other jobs: no host directories (Lima's macOS template shares your home directory read-only otherwise), disks, devices, audio or microphone, no forwarded SSH agent or X11, no shared networks, and no access to the host's loopback services (which include the SSH ports of other jobs' VMs). It refuses to start the clone if Lima's global config (`~/.lima/_config/default.yaml` or `override.yaml`) adds any of them back. Services on the host that listen on all interfaces stay reachable from jobs through its LAN address, as from any machine on the network. It starts the VM (about 15 s), copies in the runner build it downloaded and verified (about 15 s), runs it with its config on stdin, and deletes the VM when the job is done. If a VM can't be deleted, no new job starts until it is.
+
+VMs it makes are named `manica-runner-` followed by the first 12 characters of the runner's id, without dashes; on start, the agent deletes any left over by a previous one, so the golden VM's name can't start with `manica-runner-`. For the same reason only one agent at a time can use a Lima home: a second one refuses to start.
 
 ## Development
 

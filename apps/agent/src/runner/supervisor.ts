@@ -1,13 +1,5 @@
-import { mkdir, rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { UnsupportedPlatformError } from './errors'
-import { copyBuild, type createInstaller, type RunnerBuild } from './install'
-import {
-  clearStaleRunners,
-  type RunnerProcess,
-  spawnRunner,
-  stopRunner,
-} from './process'
+import type { RunnerHost } from './host'
+import type { RunnerBuild } from './install'
 
 // A runner the plane handed out, with the config it starts with.
 export type RunnerStart = { id: string; name: string; config: string }
@@ -15,29 +7,28 @@ export type RunnerStart = { id: string; name: string; config: string }
 type Runner = {
   id: string
   name: string
-  stopping: boolean
-  process?: RunnerProcess
+  stop: AbortController
+  done: Promise<void>
   // Set once it's done: its exit code, or null if it never ran.
   exitCode?: number | null
 }
 
 type Options = {
-  runnersDir: string
-  installer: Pick<ReturnType<typeof createInstaller>, 'ensure'>
+  host: RunnerHost
   // Tells the plane a runner is done. Throws if the plane can't be told.
   report: (id: string, exitCode: number | null) => Promise<void>
   log?: (line: string) => void
-  spawn?: typeof spawnRunner
 }
 
-// Runs the runners the plane hands out, each in a directory of its own,
-// from start to reported exit.
+const describe = (error: unknown) =>
+  error instanceof Error ? error.message : String(error)
+
+// Runs the runners the plane hands out on `host`, from start to reported
+// exit.
 export const createSupervisor = ({
-  runnersDir,
-  installer,
+  host,
   report,
   log = console.log,
-  spawn = spawnRunner,
 }: Options) => {
   const runners = new Map<string, Runner>()
 
@@ -46,37 +37,29 @@ export const createSupervisor = ({
     start: RunnerStart,
     build: RunnerBuild,
   ) => {
-    const dir = join(runnersDir, runner.id)
     try {
-      // Stopping a runner's process tree needs process groups, and its
-      // binaries are run.sh-based: Windows needs its own handling.
-      if (process.platform === 'win32') throw new UnsupportedPlatformError()
-      const installed = await installer.ensure(build)
-      if (runner.stopping) return null
-      await mkdir(runnersDir, { recursive: true, mode: 0o700 })
-      await copyBuild(installed, dir)
-      if (runner.stopping) return null
-      log(`starting runner ${runner.name}`)
-      runner.process = await spawn(dir, start.config, (line) =>
-        log(`[${runner.name}] ${line}`),
+      const exitCode = await host.run(
+        { ...start, build },
+        {
+          signal: runner.stop.signal,
+          log,
+          output: (line) => log(`[${runner.name}] ${line}`),
+        },
       )
-      const exitCode = await runner.process.exited
-      log(`runner ${runner.name} exited with ${exitCode}`)
+      if (exitCode !== null) {
+        log(`runner ${runner.name} exited with ${exitCode}`)
+      }
       return exitCode
     } catch (error) {
-      log(
-        `runner ${runner.name} failed: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      log(`runner ${runner.name} failed: ${describe(error)}`)
       return null
-    } finally {
-      await rm(dir, { recursive: true, force: true })
     }
   }
 
   return {
     // Clears what a previous agent left behind. Call before the first poll:
     // the plane releases what that agent held once it's not listed.
-    clearStale: () => clearStaleRunners(runnersDir),
+    clearStale: () => host.clearStale(),
 
     // The runners held, to list in polls: running, starting, or exited but
     // not yet reported.
@@ -96,20 +79,27 @@ export const createSupervisor = ({
 
     start(start: RunnerStart, build: RunnerBuild) {
       if (runners.has(start.id)) return
-      const runner: Runner = { id: start.id, name: start.name, stopping: false }
+      const runner: Runner = {
+        id: start.id,
+        name: start.name,
+        stop: new AbortController(),
+        done: Promise.resolve(),
+      }
       runners.set(start.id, runner)
-      void run(runner, start, build).then((exitCode) => {
+      runner.done = run(runner, start, build).then((exitCode) => {
         runner.exitCode = exitCode
       })
     },
 
-    // Stops a runner, if it's held.
+    // Stops a runner, if it's held, resolving once it's done.
     async stop(id: string) {
       const runner = runners.get(id)
-      if (!runner || runner.stopping) return
-      runner.stopping = true
-      log(`stopping runner ${runner.name}`)
-      if (runner.process) await stopRunner(runner.process)
+      if (!runner) return
+      if (!runner.stop.signal.aborted) {
+        log(`stopping runner ${runner.name}`)
+        runner.stop.abort()
+      }
+      await runner.done
     },
 
     async stopAll() {
@@ -126,7 +116,7 @@ export const createSupervisor = ({
           runners.delete(runner.id)
         } catch (error) {
           log(
-            `reporting runner ${runner.name}'s exit failed: ${error instanceof Error ? error.message : String(error)}`,
+            `reporting runner ${runner.name}'s exit failed: ${describe(error)}`,
           )
           return
         }

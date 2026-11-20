@@ -2,6 +2,7 @@ import { expect, mock, test } from 'bun:test'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createBuild, isAlive, tempDir, waitFor } from '../../test/build'
+import { createLocalHost } from './host'
 import { createSupervisor } from './supervisor'
 
 const build = { version: '1.0.0', url: 'unused', sha256: 'unused' }
@@ -13,8 +14,10 @@ const setup = async (env: Record<string, string> = {}) => {
   const report = mock(async (_id: string, _exitCode: number | null) => {})
   Object.assign(process.env, env)
   const supervisor = createSupervisor({
-    runnersDir,
-    installer: { ensure: async () => template },
+    host: createLocalHost({
+      runnersDir,
+      installer: { ensure: async () => template },
+    }),
     report,
     log: (line) => lines.push(line),
   })
@@ -70,12 +73,14 @@ test('reports a runner that failed to start as exited without a code', async () 
   const runnersDir = await tempDir()
   const report = mock(async (_id: string, _exitCode: number | null) => {})
   const supervisor = createSupervisor({
-    runnersDir,
-    installer: {
-      ensure: async () => {
-        throw new Error('download failed')
+    host: createLocalHost({
+      runnersDir,
+      installer: {
+        ensure: async () => {
+          throw new Error('download failed')
+        },
       },
-    },
+    }),
     report,
     log: () => {},
   })
@@ -94,8 +99,10 @@ test('clears runners a previous agent left running', async () => {
 
   // A new agent, after this one died without stopping it.
   await createSupervisor({
-    runnersDir,
-    installer: { ensure: async () => '' },
+    host: createLocalHost({
+      runnersDir,
+      installer: { ensure: async () => '' },
+    }),
     report: async () => {},
     log: () => {},
   }).clearStale()
