@@ -16,6 +16,10 @@ import { Button } from '@/components/ui/button'
 import { type AgentAction, AgentActions } from '@/features/agents/agent-actions'
 import { AgentFormDialog } from '@/features/agents/agent-form-dialog'
 import {
+  AgentMetricsSheet,
+  ResourceMeters,
+} from '@/features/agents/agent-metrics'
+import {
   type Agent,
   agentsKey,
   agentsQuery,
@@ -69,6 +73,11 @@ const dataColumns = [
       </span>
     ),
   }),
+  column.accessor('metrics', {
+    header: 'Resources',
+    enableSorting: false,
+    cell: ({ row }) => <ResourceMeters reading={row.original.metrics} />,
+  }),
   column.accessor((agent) => agent.labels.join(' '), {
     id: 'labels',
     header: 'Labels',
@@ -109,6 +118,7 @@ const dataColumns = [
 const hideableColumns = [
   { id: 'platform', label: 'Platform' },
   { id: 'running', label: 'Running' },
+  { id: 'metrics', label: 'Resources' },
   { id: 'labels', label: 'Labels' },
   { id: 'version', label: 'Version' },
   { id: 'lastSeenAt', label: 'Last seen' },
@@ -291,6 +301,11 @@ const AgentList = ({
       />
       <RegenerateTokenDialog
         {...dialogProps('regenerate-token')}
+        agent={target}
+      />
+      <AgentMetricsSheet
+        {...dialogProps('metrics')}
+        organizationId={organizationId}
         agent={target}
       />
       <DeleteAgentDialog

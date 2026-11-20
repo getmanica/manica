@@ -1,4 +1,5 @@
 import {
+  ActivityIcon,
   KeyRoundIcon,
   MoreVerticalIcon,
   PencilIcon,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Agent } from '@/features/agents/agents'
 
-export type AgentAction = 'edit' | 'regenerate-token' | 'delete'
+export type AgentAction = 'metrics' | 'edit' | 'regenerate-token' | 'delete'
 
 export const AgentActions = ({
   agent,
@@ -36,6 +37,11 @@ export const AgentActions = ({
       <MoreVerticalIcon />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
+      <DropdownMenuItem onClick={() => onAction('metrics', agent)}>
+        <ActivityIcon />
+        Metrics
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
       <DropdownMenuItem onClick={() => onAction('edit', agent)}>
         <PencilIcon />
         Edit

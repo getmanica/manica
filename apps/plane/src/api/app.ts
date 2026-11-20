@@ -10,6 +10,7 @@ import { forgeWebhooksController } from './forge-apps/webhooks.controller'
 import { jobsController } from './jobs/jobs.controller'
 import { connectedAppsController } from './mcp/connected-apps.controller'
 import { mcpController } from './mcp/mcp.controller'
+import { settingsController } from './organizations/settings.controller'
 import { overviewController } from './overview/overview.controller'
 import { agentController } from './runners/agent.controller'
 
@@ -29,6 +30,7 @@ const api = new Elysia({ prefix: '/api' })
   .use(forgeAppsController)
   .use(jobsController)
   .use(overviewController)
+  .use(settingsController)
   .use(connectedAppsController)
   .use(billingController)
   // Console, for the plane's admins

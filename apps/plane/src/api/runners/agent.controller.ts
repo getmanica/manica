@@ -3,6 +3,8 @@ import { agentsService } from '../agents/agents.service'
 import { agentAuthMacro } from '../auth/agent-token'
 import { runnersService } from './index'
 
+const bytes = t.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })
+
 // The API agents call, as opposed to `/agents`, used to manage them.
 export const agentController = new Elysia({ prefix: '/agent' })
   .use(agentAuthMacro)
@@ -19,6 +21,16 @@ export const agentController = new Elysia({ prefix: '/agent' })
         version: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
         accepting: t.Boolean(),
         runners: t.Array(t.String(), { maxItems: 256 }),
+        // Sent only by agents with metrics enabled, every so often.
+        metrics: t.Optional(
+          t.Object({
+            cpu: t.Number({ minimum: 0, maximum: 1 }),
+            memoryUsed: bytes,
+            memoryTotal: bytes,
+            diskUsed: bytes,
+            diskTotal: bytes,
+          }),
+        ),
       }),
     },
     ({ agent, body }) => runnersService.poll(agent.id, body),

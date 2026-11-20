@@ -8,9 +8,13 @@ import { AgentBusyError } from '../agents/errors'
 import type { Forge, JobEvent } from '../forges/forge'
 import { jobsService } from '../jobs/jobs.service'
 import { db } from '../platform/db'
-import { agent, job, runner } from '../platform/db/schema'
+import { agent, agentMetric, job, runner } from '../platform/db/schema'
 import { createReaper } from './reaper'
-import { createRunnersService, LEASE_MS } from './runners.service'
+import {
+  createRunnersService,
+  LEASE_MS,
+  type PollInput,
+} from './runners.service'
 
 type App = { id: string; organizationId: string }
 
@@ -91,12 +95,18 @@ const storedRunner = async (id: string) => {
 
 const poll = (
   runners: string[] = [],
-  input: { accepting?: boolean; agentId?: string; version?: string } = {},
+  input: {
+    accepting?: boolean
+    agentId?: string
+    version?: string
+    metrics?: PollInput['metrics']
+  } = {},
 ) =>
   service().poll(input.agentId ?? mac.id, {
     version: input.version,
     accepting: input.accepting ?? true,
     runners,
+    metrics: input.metrics,
   })
 
 // Moves the runner's lease into the past.
@@ -177,6 +187,26 @@ describe('poll', () => {
     // An agent that doesn't report it may be any version.
     await poll()
     expect(await version()).toBeNull()
+  })
+
+  test('records the metrics the agent reports, at most every 10 seconds', async () => {
+    const reading = {
+      cpu: 0.25,
+      memoryUsed: 8 * 2 ** 30,
+      memoryTotal: 32 * 2 ** 30,
+      diskUsed: 600 * 2 ** 30,
+      diskTotal: 2 ** 40,
+    }
+    await poll()
+    await poll([], { metrics: reading })
+    await poll([], { metrics: { ...reading, cpu: 0.5 } })
+    const stored = await db
+      .select()
+      .from(agentMetric)
+      .where(eq(agentMetric.agentId, mac.id))
+    expect(stored).toEqual([
+      { agentId: mac.id, recordedAt: expect.any(Date), ...reading },
+    ])
   })
 
   test('says which runner build to run', async () => {

@@ -1,0 +1,155 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ebdb6a4d-1012-45de-aaa4-f856605425ed",
+  "prevIds": [
+    "f5050b0e-f755-4f6e-a927-42348cc98bca"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "organization_settings"
+      ],
+      "writes": [
+        "s|tbl|public.organization_settings",
+        "n|tbl|public.organization_settings",
+        "e|tbl|public.organization_settings",
+        "n|rel|public.organization_settings",
+        "n|type|public.organization_settings",
+        "n|rel|public.organization_settings_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "organization_settings"
+      ],
+      "writes": [
+        "s|fk|public.organization_settings.organization_settings_organization_id_organization_id_fkey",
+        "n|fk|public.organization_settings.organization_settings_organization_id_organization_id_fkey",
+        "e|fk|public.organization_settings.organization_settings_organization_id_organization_id_fkey",
+        "n|con|public.organization_settings.organization_settings_organization_id_organization_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.organization_settings",
+        "n|sch|public",
+        "n|tbl|public.organization",
+        "n|sch|public",
+        "n|col|public.organization_settings.organization_id",
+        "n|col|public.organization.id",
+        "e|uniqueness|public.organization.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "organization_settings",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "organization_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "metrics_retention_days",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "30",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "updated_at",
+        "type": "timestamp",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "organization_settings_organization_id_organization_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "organization_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organization",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "organization_settings_pkey",
+        "columns": [
+          "organization_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organization_settings",
+        "name": "organization_settings_metricsRetentionDays_range",
+        "value": "\"metrics_retention_days\" between 1 and 90",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

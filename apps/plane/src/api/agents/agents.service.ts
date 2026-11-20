@@ -36,6 +36,7 @@ import {
   AgentNameTakenError,
   AgentNotFoundError,
 } from './errors'
+import { agentMetricsService } from './metrics.service'
 
 // Tokens are prefixed so they're recognizable (e.g. by secret scanners).
 const TOKEN_PREFIX = 'mna_'
@@ -141,7 +142,7 @@ export const agentsService = {
     )
     const { limit, offset } = pageWindow(options)
 
-    const [items, total, present] = await Promise.all([
+    const [rows, total, present] = await Promise.all([
       db
         .select({ ...publicColumns, running })
         .from(agent)
@@ -156,6 +157,12 @@ export const agentsService = {
         .where(scope)
         .orderBy(agent.os, agent.arch),
     ])
+    // Each agent's current reading, if it reports them.
+    const current = await agentMetricsService.current(rows.map(({ id }) => id))
+    const items = rows.map((row) => ({
+      ...row,
+      metrics: current.get(row.id) ?? null,
+    }))
     return { items, total, platforms: present.map(platformKey) }
   },
 
