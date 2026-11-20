@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/getmanica/manica/compare/plane-v0.5.0...plane-v0.6.0) (2026-11-20)
+
+
+### Features
+
+* **plane:** grant plans to users ([bdc2a38](https://github.com/getmanica/manica/commit/bdc2a382731583a1ea8c54f3f860ef7c3d903a47))
+* **plane:** record and chart agent metrics, with per-organization retention ([d98ca4d](https://github.com/getmanica/manica/commit/d98ca4d175210d1af0a66d0fb4abbc62315f046a))
+
 ## [0.5.0](https://github.com/getmanica/manica/compare/plane-v0.4.0...plane-v0.5.0) (2026-11-08)
 
 
