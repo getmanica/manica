@@ -1,0 +1,11 @@
+# The single source of toolchain versions, locally and in CI (via
+# jdx/mise-action): `mise install`. Bump versions here, then refresh mise.lock
+# with:
+#   mise lock --platform linux-x64,linux-arm64,macos-arm64
+[tools]
+# Package manager and script runner; the plane runs on Node.
+bun = "1.4.4"
+node = "24"
+
+[settings]
+lockfile = true

@@ -9,6 +9,8 @@ on:
       - packages/**
       - bun.lock
       - package.json
+      - mise.toml
+      - mise.lock
       - .github/workflows/agent-smoke.yml
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       - packages/**
       - bun.lock
       - package.json
+      - mise.toml
+      - mise.lock
       - .github/workflows/agent-smoke.yml
   workflow_dispatch:
 
@@ -34,9 +38,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      # The versions come from mise.toml.
+      - uses: jdx/mise-action@v5
         with:
-          bun-version: 1.4.4
+          install_args: bun
       - run: bun install --frozen-lockfile
       - name: build
         working-directory: apps/agent
@@ -59,9 +64,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      # The versions come from mise.toml.
+      - uses: jdx/mise-action@v5
         with:
-          bun-version: 1.4.4
+          install_args: bun
       - run: bun install --frozen-lockfile
       - name: build
         working-directory: apps/agent

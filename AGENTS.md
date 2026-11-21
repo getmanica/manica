@@ -7,6 +7,8 @@ Bun + Turborepo monorepo.
 
 ## Commands
 
+Toolchains (Bun, Node) come from `mise.toml`, pinned in `mise.lock`: `mise install`. Bump them there and refresh the lock (`mise lock --platform linux-x64,linux-arm64,macos-arm64`); CI installs from it too (`jdx/mise-action`).
+
 Run from the repo root (Bun only, no npm/pnpm):
 
 - `bun run dev`: start everything

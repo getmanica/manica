@@ -243,6 +243,7 @@ VMs it makes are named `manica-runner-` followed by the first 12 characters of t
 Bun + Turborepo monorepo: `apps/plane`, `apps/agent`, and shared TS configs in `packages/tsconfig`.
 
 ```sh
+mise install                           # Bun and Node, at the versions in mise.toml
 bun install
 docker compose up -d                   # Postgres; set POSTGRES_PORT if 5432 is taken
 cp apps/plane/.env.example apps/plane/.env   # fill in the secrets
