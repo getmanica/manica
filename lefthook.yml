@@ -1,3 +1,18 @@
+pre-commit:
+  # Clippy runs after rustfmt, so it lints the formatted code.
+  parallel: false
+  jobs:
+    - name: agent rustfmt
+      root: apps/agent/
+      glob: "*.rs"
+      run: cargo fmt
+      stage_fixed: true
+
+    - name: agent clippy
+      root: apps/agent/
+      glob: "{*.rs,Cargo.toml,Cargo.lock,clippy.toml}"
+      run: cargo clippy --all-targets --locked -- -D warnings
+
 commit-msg:
   commands:
     commitlint:

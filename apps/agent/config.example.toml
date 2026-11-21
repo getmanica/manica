@@ -1,5 +1,5 @@
-# Copy to $XDG_CONFIG_HOME/manica/config.toml (~/.config/manica/config.toml;
-# %APPDATA%\manica\config.toml on Windows), or pass --config-dir.
+# Copy to $XDG_CONFIG_HOME/manica/config.toml (~/.config/manica/config.toml),
+# or pass --config-dir.
 
 [plane]
 # Where the plane is reachable.
@@ -12,8 +12,7 @@ token = "mna_..."
 
 [agent]
 # Where runner builds are downloaded and runners run. Defaults to
-# $XDG_DATA_HOME/manica (~/.local/share/manica; %LOCALAPPDATA%\manica on
-# Windows).
+# $XDG_DATA_HOME/manica (~/.local/share/manica).
 # data_dir = "/var/lib/manica"
 
 # Report this machine's CPU, memory and disk use (of the volume data_dir is

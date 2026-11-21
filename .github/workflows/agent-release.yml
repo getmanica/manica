@@ -70,13 +70,16 @@ jobs:
           - os: linux
             runner: ubuntu-latest
             smoke: manica-agent-linux-x64
-          # The macOS executables are built on macOS, where Bun gives them
-          # the ad-hoc signature Apple Silicon refuses to run them without.
-          # One of our own runners, picked up by a Manica agent through the
-          # plane.
+            tools: bun rust zig github:rust-cross/cargo-zigbuild
+          # The macOS executables are built on macOS, with the Apple
+          # toolchain, which gives them the ad-hoc signature Apple Silicon
+          # refuses to run them without. One of our own runners, picked up by
+          # a Manica agent through the plane. The Linux ones build anywhere,
+          # through zig.
           - os: darwin
             runner: [self-hosted, manica, macos, arm64]
             smoke: manica-agent-darwin-arm64
+            tools: bun rust
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
@@ -88,9 +91,10 @@ jobs:
         run: jq --arg v "$VERSION" '.version = $v' apps/agent/package.json > "$RUNNER_TEMP/package.json" && mv "$RUNNER_TEMP/package.json" apps/agent/package.json
         env:
           VERSION: ${{ needs.version.outputs.version }}
-      - uses: oven-sh/setup-bun@v2
+      # The versions come from mise.toml.
+      - uses: jdx/mise-action@v5
         with:
-          bun-version: 1.4.4
+          install_args: ${{ matrix.tools }}
       - run: bun install --frozen-lockfile
       - name: build
         working-directory: apps/agent
@@ -146,13 +150,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
-      - uses: oven-sh/setup-bun@v2
+      # The versions come from mise.toml. Trusted publishing needs npm
+      # 11.5.1 or later, which Node 24 ships.
+      - uses: jdx/mise-action@v5
         with:
-          bun-version: 1.4.4
-      # Trusted publishing needs npm 11.5.1 or later.
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
+          install_args: bun node
       - uses: actions/download-artifact@v8
         with:
           pattern: agent-*

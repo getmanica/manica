@@ -5,6 +5,7 @@
     "includes": [
       "**",
       "!drizzle",
+      "!openapi",
       "!src/web/components/ui",
       "!src/routeTree.gen.ts"
     ]

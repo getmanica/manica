@@ -14,26 +14,16 @@
     },
     "apps/agent": {
       "name": "agent",
-      "version": "0.4.0",
-      "bin": {
-        "manica-agent": "./src/index.ts",
-      },
-      "dependencies": {
-        "@bomb.sh/args": "^0.3.1",
-        "@elysia/eden": "2.0.0-rc.1",
-        "elysia": "2.0.0-rc.1",
-        "valibot": "^1.5.0",
-      },
+      "version": "0.6.0",
       "devDependencies": {
         "@manica/tsconfig": "workspace:*",
         "@types/bun": "catalog:",
-        "plane": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "apps/plane": {
       "name": "plane",
-      "version": "0.4.0",
+      "version": "0.6.0",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
         "@better-auth/cimd": "1.7.15",
@@ -70,6 +60,7 @@
         "zod": "^4.5.4",
       },
       "devDependencies": {
+        "@elysia/openapi": "2.0.0-rc.1",
         "@manica/tsconfig": "workspace:*",
         "@modelcontextprotocol/client": "2.4.0",
         "@tailwindcss/vite": "^4.3.5",
@@ -213,8 +204,6 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.4", "", { "os": "win32", "cpu": "x64" }, "sha512-pYsMy5AThiHFOZAsngg8qN4PurM6nInKBhVX7sbj3eNpRQqo1Hb0MgCwPL7VqVMrmcEEMj9Ks3qbkallR65e8g=="],
 
-    "@bomb.sh/args": ["@bomb.sh/args@0.3.1", "", {}, "sha512-CwxKrfgcorUPP6KfYD59aRdBYWBTsfsxT+GmoLVnKo5Tmyoqbpo0UNcjngRMyU+6tiPbd18RuIYxhgAn44wU/Q=="],
-
     "@commitlint/cli": ["@commitlint/cli@21.2.4", "", { "dependencies": { "@commitlint/config-conventional": "^21.2.4", "@commitlint/format": "^21.2.3", "@commitlint/lint": "^21.2.4", "@commitlint/load": "^21.2.4", "@commitlint/read": "^21.2.3", "@commitlint/types": "^21.2.3", "tinyexec": "^1.0.0", "yargs": "^18.0.0" }, "bin": { "commitlint": "cli.js" } }, "sha512-g3M/wrQdElqGH5vROIeL2QiYIxrzqUkhCgsDyDlWfKEyQdCt10OyMB28W2cJtpZ+VNGMvmaN923infr1hOfyrg=="],
 
     "@commitlint/config-conventional": ["@commitlint/config-conventional@21.2.4", "", { "dependencies": { "@commitlint/types": "^21.2.3", "conventional-changelog-conventionalcommits": "^10.0.0" } }, "sha512-IRldtwgNmR0SySR7wizFbhRmq45lPt6H3XCNTMyVN7jrPLgi8JlTRR6Eg1HLWUQt9P1Lh3k6eY25ilDa47EE6w=="],
@@ -264,6 +253,8 @@
     "@dotenvx/primitives": ["@dotenvx/primitives@0.8.0", "", {}, "sha512-VYJy0uhFm9zTJ1TxBaW/pA8bjbOM/OttaNMwZ1RHG4JKyRG7DhSdiqD1ipQoAyoD22olUtxbP78W9xY3Wd11bg=="],
 
     "@elysia/eden": ["@elysia/eden@2.0.0-rc.1", "", { "peerDependencies": { "elysia": ">= 2.0.0-rc.0" } }, "sha512-5W2/OaTOYlF3XU/nQDQ4HeL8SfWHD8YV+YE7YlbZdvK3hDjCcwqc2C7/CvjmE8QZ8XbYDLzk5rj0rY+xBVH6dw=="],
+
+    "@elysia/openapi": ["@elysia/openapi@2.0.0-rc.1", "", { "peerDependencies": { "elysia": ">= 2.0.0-rc.0" } }, "sha512-XzNbSVkgxrsTxK3tq+IUXV84FvmM7dO2uDJ9xS55JJQalKbXOM4TgNAg3Um/pBML5UApIXKh8IZmWXK5WdHitQ=="],
 
     "@emnapi/core": ["@emnapi/core@1.11.3", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.3", "tslib": "^2.4.0" } }, "sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg=="],
 
@@ -1310,8 +1301,6 @@
     "use-sync-external-store": ["use-sync-external-store@1.7.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A=="],
 
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
-
-    "valibot": ["valibot@1.5.0", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ=="],
 
     "validate-npm-package-name": ["validate-npm-package-name@7.0.2", "", {}, "sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A=="],
 

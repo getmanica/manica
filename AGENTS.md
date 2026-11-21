@@ -1,22 +1,24 @@
 # Manica
 
-Bun + Turborepo monorepo.
+Bun + Turborepo monorepo: the plane in TypeScript, the agent in Rust.
 
 - `apps/*`: applications.
 - `packages/tsconfig`: shared TS configs (`@manica/tsconfig/base.json`, `bun.json`, `react.json`).
 
 ## Commands
 
+Toolchains (Bun, Node, Rust, and zig + cargo-zigbuild for the agent's Linux builds) come from `mise.toml`, pinned in `mise.lock`: `mise install`. Bump them there and refresh the lock (`mise lock --platform linux-x64,linux-arm64,macos-arm64`); CI installs from it too (`jdx/mise-action`).
+
 Run from the repo root (Bun only, no npm/pnpm):
 
 - `bun run dev`: start everything
 - `bun run check-types`, `bun run lint`, `bun run format:check`
-- `bun run test`: plane tests (Vitest) run against a throwaway database on the Postgres from `DATABASE_URL` (see `apps/plane/test/global-setup.ts`)
+- `bun run test`: plane tests (Vitest) run against a throwaway database on the Postgres from `DATABASE_URL` (see `apps/plane/test/global-setup.ts`); agent tests are `cargo test`
 - `bun run --cwd apps/plane db:migrate`: apply the plane's migrations (`db:generate` makes them)
 
 ## Conventions
 
-- Each workspace has a `biome.json` extending the root (`"root": false, "extends": "//"`) and a `tsconfig.json` extending `@manica/tsconfig/*`.
+- Each workspace has a `biome.json` extending the root (`"root": false, "extends": "//"`) and a `tsconfig.json` extending `@manica/tsconfig/*` (for the agent, they cover its scripts only).
 - Shared dependency versions (`typescript`, `@types/bun`, `@types/node`) come from the root catalog: use `"catalog:"`.
 - Commits follow Conventional Commits (enforced by commitlint via lefthook).
 
@@ -40,3 +42,13 @@ Run from the repo root (Bun only, no npm/pnpm):
   - `app.ts` mounts the controllers grouped by audience (console, agents, forges, MCP clients); `errors.ts` holds the cross-cutting HTTP errors
 - `web/`: per-feature code under `features/<feature>/`, shared chrome under `components/`, shadcn under `components/ui`. It renders on the server too: no `window`/`document` at module level or while rendering (only in effects and handlers). It reaches the backend through the API (`lib/api`, in-process while rendering on the server) or a server function whose handler imports from `api/` (`lib/session`)
 - import named modules directly; no barrel files (`api/runners/index.ts` is the one wiring point, building the services from the forge registry)
+
+## Agent
+
+- Rust (`apps/agent`, crate `manica-agent`), a library (`src/lib.rs`) and its binary (`src/main.rs`); the workspace's `package.json` scripts run cargo, so `bun run build|test|lint|format` cover it, and it holds the version release-please bumps (`build.rs` embeds it; `Cargo.toml`'s stays `0.0.0`)
+- the plane's API types come from `apps/plane/openapi/agent.json`, generated at build time (`build.rs`, typify) into `crate::api`; the plane's `agent-api.test.ts` keeps the spec in sync with its routes (`bun run test -u`), so an API change that no longer fits fails the agent's build
+- strict lints, as in Cargo.toml's `[lints]`: every clippy group (pedantic, nursery, cargo) plus a curated set of restriction ones (no `unwrap`/`expect`/indexing/`as`/printing outside tests), `-D warnings`, run by `bun run lint` and the pre-commit hook. Fix what they flag rather than allowing it; an `#[allow]` needs a `reason`
+- modules as `foo.rs` + `foo/`, never `foo/mod.rs`; errors are typed (`thiserror`), per layer (`errors.rs`, `runner/errors.rs`, `vm/errors.rs`)
+- output goes through `lines` (`info`, `error`, `Log`); locks through `lines::lock`
+- unix only (process groups, flock); released for darwin and linux (static musl) on arm64 and x64 (`scripts/platforms.ts`), cross-compiled by `scripts/compile.ts`, and published to npm as before (`scripts/npm.ts`)
+

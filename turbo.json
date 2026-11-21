@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalPassThroughEnv": ["RUSTUP_TOOLCHAIN", "RUSTUP_HOME", "CARGO_HOME"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
