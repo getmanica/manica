@@ -14,7 +14,7 @@
     },
     "apps/agent": {
       "name": "agent",
-      "version": "0.4.0",
+      "version": "0.6.0",
       "bin": {
         "manica-agent": "./src/index.ts",
       },
@@ -33,7 +33,7 @@
     },
     "apps/plane": {
       "name": "plane",
-      "version": "0.4.0",
+      "version": "0.6.0",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
         "@better-auth/cimd": "1.7.15",
@@ -70,6 +70,7 @@
         "zod": "^4.5.4",
       },
       "devDependencies": {
+        "@elysia/openapi": "2.0.0-rc.1",
         "@manica/tsconfig": "workspace:*",
         "@modelcontextprotocol/client": "2.4.0",
         "@tailwindcss/vite": "^4.3.5",
@@ -264,6 +265,8 @@
     "@dotenvx/primitives": ["@dotenvx/primitives@0.8.0", "", {}, "sha512-VYJy0uhFm9zTJ1TxBaW/pA8bjbOM/OttaNMwZ1RHG4JKyRG7DhSdiqD1ipQoAyoD22olUtxbP78W9xY3Wd11bg=="],
 
     "@elysia/eden": ["@elysia/eden@2.0.0-rc.1", "", { "peerDependencies": { "elysia": ">= 2.0.0-rc.0" } }, "sha512-5W2/OaTOYlF3XU/nQDQ4HeL8SfWHD8YV+YE7YlbZdvK3hDjCcwqc2C7/CvjmE8QZ8XbYDLzk5rj0rY+xBVH6dw=="],
+
+    "@elysia/openapi": ["@elysia/openapi@2.0.0-rc.1", "", { "peerDependencies": { "elysia": ">= 2.0.0-rc.0" } }, "sha512-XzNbSVkgxrsTxK3tq+IUXV84FvmM7dO2uDJ9xS55JJQalKbXOM4TgNAg3Um/pBML5UApIXKh8IZmWXK5WdHitQ=="],
 
     "@emnapi/core": ["@emnapi/core@1.11.3", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.3", "tslib": "^2.4.0" } }, "sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg=="],
 

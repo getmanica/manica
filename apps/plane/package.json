@@ -54,6 +54,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@elysia/openapi": "2.0.0-rc.1",
     "@manica/tsconfig": "workspace:*",
     "@modelcontextprotocol/client": "2.4.0",
     "@tailwindcss/vite": "^4.3.5",

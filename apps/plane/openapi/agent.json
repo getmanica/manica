@@ -1,0 +1,228 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Manica agent API",
+    "version": "1"
+  },
+  "components": {
+    "schemas": {
+      "AgentMetrics": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "minimum": 0,
+            "maximum": 1,
+            "type": "number"
+          },
+          "memoryUsed": {
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "memoryTotal": {
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "diskUsed": {
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "diskTotal": {
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cpu",
+          "memoryUsed",
+          "memoryTotal",
+          "diskUsed",
+          "diskTotal"
+        ]
+      },
+      "AgentPoll": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "minLength": 1,
+            "maxLength": 64,
+            "type": "string"
+          },
+          "accepting": {
+            "type": "boolean"
+          },
+          "runners": {
+            "maxItems": 256,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/AgentMetrics"
+          }
+        },
+        "required": [
+          "accepting",
+          "runners"
+        ]
+      },
+      "RunnerStart": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "config": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "config"
+        ]
+      },
+      "RunnerBuild": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "url",
+          "sha256"
+        ]
+      },
+      "AgentPollResult": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunnerStart"
+            }
+          },
+          "cancel": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "leaseSeconds": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "runner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunnerBuild"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "start",
+          "cancel",
+          "leaseSeconds",
+          "runner"
+        ]
+      },
+      "RunnerExited": {
+        "type": "object",
+        "properties": {
+          "exitCode": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "exitCode"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/api/agent/heartbeat": {
+      "post": {
+        "operationId": "postApiAgentHeartbeat"
+      }
+    },
+    "/api/agent/poll": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPoll"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Response for status 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPollResult"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postApiAgentPoll"
+      }
+    },
+    "/api/agent/runners/{id}/exited": {
+      "post": {
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunnerExited"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Response for status 204"
+          }
+        },
+        "operationId": "postApiAgentRunnersByIdExited"
+      }
+    }
+  }
+}
