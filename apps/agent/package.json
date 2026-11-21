@@ -3,28 +3,18 @@
   "version": "0.6.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "manica-agent": "./src/index.ts"
-  },
   "scripts": {
-    "build": "bun build --compile src/index.ts --outfile dist/manica-agent",
-    "check-types": "tsc",
-    "format": "biome format --write",
-    "format:check": "biome format",
-    "lint": "biome lint",
-    "start": "bun src/index.ts",
-    "test": "bun test"
-  },
-  "dependencies": {
-    "@bomb.sh/args": "^0.3.1",
-    "@elysia/eden": "2.0.0-rc.1",
-    "elysia": "2.0.0-rc.1",
-    "valibot": "^1.5.0"
+    "build": "cargo build --release --locked && mkdir -p dist && cp target/release/manica-agent dist/manica-agent",
+    "check-types": "cargo check --all-targets --locked && tsc",
+    "format": "cargo fmt && biome format --write",
+    "format:check": "cargo fmt --check && biome format",
+    "lint": "cargo clippy --all-targets --locked -- -D warnings && biome lint",
+    "start": "cargo run --release --",
+    "test": "cargo test --locked"
   },
   "devDependencies": {
     "@manica/tsconfig": "workspace:*",
     "@types/bun": "catalog:",
-    "plane": "workspace:*",
     "typescript": "catalog:"
   }
 }

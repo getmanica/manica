@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/plane/openapi/agent.json",
+        "$TURBO_ROOT$/mise.toml",
+        "$TURBO_ROOT$/mise.lock"
+      ]
+    },
+    "check-types": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/plane/openapi/agent.json",
+        "$TURBO_ROOT$/mise.toml",
+        "$TURBO_ROOT$/mise.lock"
+      ]
+    },
+    "lint": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/plane/openapi/agent.json",
+        "$TURBO_ROOT$/mise.toml",
+        "$TURBO_ROOT$/mise.lock"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/plane/openapi/agent.json",
+        "$TURBO_ROOT$/mise.toml",
+        "$TURBO_ROOT$/mise.lock"
+      ]
+    }
+  }
+}

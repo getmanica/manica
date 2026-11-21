@@ -70,13 +70,16 @@ jobs:
           - os: linux
             runner: ubuntu-latest
             smoke: manica-agent-linux-x64
-          # The macOS executables are built on macOS, where Bun gives them
-          # the ad-hoc signature Apple Silicon refuses to run them without.
-          # One of our own runners, picked up by a Manica agent through the
-          # plane.
+            tools: bun rust zig github:rust-cross/cargo-zigbuild
+          # The macOS executables are built on macOS, with the Apple
+          # toolchain, which gives them the ad-hoc signature Apple Silicon
+          # refuses to run them without. One of our own runners, picked up by
+          # a Manica agent through the plane. The Linux ones build anywhere,
+          # through zig.
           - os: darwin
             runner: [self-hosted, manica, macos, arm64]
             smoke: manica-agent-darwin-arm64
+            tools: bun rust
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
@@ -91,7 +94,7 @@ jobs:
       # The versions come from mise.toml.
       - uses: jdx/mise-action@v5
         with:
-          install_args: bun
+          install_args: ${{ matrix.tools }}
       - run: bun install --frozen-lockfile
       - name: build
         working-directory: apps/agent

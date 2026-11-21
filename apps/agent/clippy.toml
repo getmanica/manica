@@ -1,0 +1,3 @@
+doc-valid-idents = ["Manica", "OpenAPI", "macOS", ".."]
+allow-unwrap-in-tests = true
+allow-indexing-slicing-in-tests = true

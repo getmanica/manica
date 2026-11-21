@@ -1,17 +1,13 @@
 // The platforms the agent is released for. `os` and `cpu` use Node's
 // process.platform and process.arch names, which is what npm matches the
-// `os` and `cpu` fields of a package against.
+// `os` and `cpu` fields of a package against; `target` is Rust's. The Linux
+// builds are static (musl), so they run whatever libc the machine has.
 export const platforms = [
-  { os: 'darwin', cpu: 'arm64', target: 'bun-darwin-arm64' },
-  // x64 builds target baseline CPUs: self-hosted machines may predate AVX2.
-  { os: 'darwin', cpu: 'x64', target: 'bun-darwin-x64-baseline' },
-  { os: 'linux', cpu: 'arm64', target: 'bun-linux-arm64' },
-  { os: 'linux', cpu: 'x64', target: 'bun-linux-x64-baseline' },
-] as const satisfies {
-  os: string
-  cpu: string
-  target: Bun.Build.CompileTarget
-}[]
+  { os: 'darwin', cpu: 'arm64', target: 'aarch64-apple-darwin' },
+  { os: 'darwin', cpu: 'x64', target: 'x86_64-apple-darwin' },
+  { os: 'linux', cpu: 'arm64', target: 'aarch64-unknown-linux-musl' },
+  { os: 'linux', cpu: 'x64', target: 'x86_64-unknown-linux-musl' },
+] as const satisfies { os: string; cpu: string; target: string }[]
 
 export type Platform = (typeof platforms)[number]
 

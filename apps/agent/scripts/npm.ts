@@ -23,7 +23,7 @@ const common = {
     type: 'git',
     url: 'git+https://github.com/getmanica/manica.git',
     directory: 'apps/agent',
-  }
+  },
 }
 
 const writeJson = (path: string, value: unknown) =>
@@ -47,8 +47,7 @@ for (const platform of platforms) {
     description: `The Manica agent for ${platformName(platform)}`,
     os: [platform.os],
     cpu: [platform.cpu],
-    // The Linux builds link against glibc.
-    ...(platform.os === 'linux' && { libc: ['glibc'] }),
+    // No `libc`: the Linux builds are static, they run on glibc and musl.
     files: ['bin'],
     preferUnplugged: true,
   })

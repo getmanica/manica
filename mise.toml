@@ -6,6 +6,14 @@
 # Package manager and script runner; the plane runs on Node.
 bun = "1.4.4"
 node = "24"
+# The agent's Linux builds, cross-compiled through zig (static, musl): see
+# apps/agent/scripts/compile.ts. cargo-zigbuild comes before rust, so it wins
+# over one `cargo install` put in ~/.cargo/bin.
+zig = "0.17.0"
+"github:rust-cross/cargo-zigbuild" = "0.24.1"
+# The agent, with a target for every platform it's released for
+# (apps/agent/scripts/platforms.ts).
+rust = { version = "1.99.1", profile = "minimal", components = ["rustfmt", "clippy"], targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-unknown-linux-musl"] }
 
 [settings]
 lockfile = true

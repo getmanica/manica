@@ -240,10 +240,10 @@ VMs it makes are named `manica-runner-` followed by the first 12 characters of t
 
 ## Development
 
-Bun + Turborepo monorepo: `apps/plane`, `apps/agent`, and shared TS configs in `packages/tsconfig`.
+Bun + Turborepo monorepo: `apps/plane` (TypeScript), `apps/agent` (Rust), and shared TS configs in `packages/tsconfig`.
 
 ```sh
-mise install                           # Bun and Node, at the versions in mise.toml
+mise install                           # Bun, Node and Rust, at the versions in mise.toml
 bun install
 docker compose up -d                   # Postgres; set POSTGRES_PORT if 5432 is taken
 cp apps/plane/.env.example apps/plane/.env   # fill in the secrets
@@ -251,7 +251,7 @@ bun run --cwd apps/plane db:migrate    # again after pulling new migrations
 bun run dev
 ```
 
-Bun is the package manager and task runner; the plane itself runs on Node (TanStack Start, served by Vite in development).
+Bun is the package manager and task runner; the plane itself runs on Node (TanStack Start, served by Vite in development). The agent is a Rust crate in the `apps/agent` workspace, whose scripts run cargo, so the commands below cover it too; its types for the plane's API are generated from the spec the plane's tests keep in `apps/plane/openapi/agent.json` (`bun run test -u` updates it).
 
 GitHub must be able to reach the webhook URL, so in development run a tunnel that forwards every path (for example `cloudflared tunnel --url http://localhost:3000`) and set `PUBLIC_URL` to the URL it prints. smee.io doesn't work, because each app has its own webhook path.
 

@@ -33,24 +33,33 @@ concurrency:
 
 jobs:
   linux:
-    name: build (linux-x64)
+    name: build (linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       # The versions come from mise.toml.
       - uses: jdx/mise-action@v5
         with:
-          install_args: bun
+          install_args: bun rust zig github:rust-cross/cargo-zigbuild
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/agent
       - run: bun install --frozen-lockfile
-      - name: build
-        working-directory: apps/agent
-        run: bun run build
-      - name: smoke test
+      - name: test
         working-directory: apps/agent
         run: |
-          ./dist/manica-agent --version
-          ./dist/manica-agent --help
+          bun run lint
+          bun run test
+      # Both Linux builds, as they're released: static, through zig.
+      - name: build
+        working-directory: apps/agent
+        run: bun scripts/compile.ts --os linux
+      - name: smoke test
+        working-directory: apps/agent/dist/release
+        run: |
+          ./manica-agent-linux-x64 --version
+          ./manica-agent-linux-x64 --help
 
   macos:
     name: build (macos-arm64)
@@ -61,14 +70,20 @@ jobs:
       github.event_name != 'pull_request'
       || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, manica, macos, arm64]
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       # The versions come from mise.toml.
       - uses: jdx/mise-action@v5
         with:
-          install_args: bun
+          install_args: bun rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/agent
       - run: bun install --frozen-lockfile
+      - name: test
+        working-directory: apps/agent
+        run: bun run test
       - name: build
         working-directory: apps/agent
         run: bun run build

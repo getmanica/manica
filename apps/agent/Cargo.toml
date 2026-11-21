@@ -1,0 +1,126 @@
+[package]
+name = "manica-agent"
+# The agent's version is package.json's, which release-please bumps: see
+# build.rs.
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+description = "Run your own GitHub Actions runners on your own machines"
+license = "MIT"
+repository = "https://github.com/getmanica/manica"
+readme = "../../README.md"
+keywords = ["ci", "github-actions", "runner"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "manica-agent"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1"
+flate2 = "1"
+futures-util = "0.3"
+hex = "0.4"
+lexopt = "0.3"
+nix = { version = "0.32", features = ["fs", "process", "signal"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "http2"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+sysinfo = { version = "0.40", default-features = false, features = ["system"] }
+tar = "0.4"
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt", "signal", "sync", "time"] }
+tokio-util = "0.7"
+toml = "1"
+url = "2"
+webpki-root-certs = "1"
+
+[build-dependencies]
+prettyplease = "0.3"
+schemars = "0.8"
+serde_json = "1"
+syn = { version = "3", features = ["full"] }
+typify = { version = "0.10", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+# Strictest practical clippy (as in postden): every non-restriction group,
+# plus a curated set of restriction lints (enabling `restriction` wholesale
+# is unsupported: its lints contradict each other). `bun run lint` runs it
+# with `-D warnings`, so every warning fails it. Tests may unwrap, expect,
+# panic, index and print (clippy.toml).
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Dependencies pull duplicate versions we can't control.
+multiple_crate_versions = "allow"
+# Contradicts rustc's `unreachable_pub` (enabled above), which asks for
+# `pub(crate)` in private modules.
+redundant_pub_crate = "allow"
+
+# restriction
+allow_attributes_without_reason = "warn"
+as_conversions = "warn"
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+empty_drop = "warn"
+empty_structs_with_brackets = "warn"
+exit = "warn"
+expect_used = "warn"
+filetype_is_file = "warn"
+get_unwrap = "warn"
+if_then_some_else_none = "warn"
+indexing_slicing = "warn"
+let_underscore_must_use = "warn"
+lossy_float_literal = "warn"
+map_err_ignore = "warn"
+mem_forget = "warn"
+missing_assert_message = "warn"
+mixed_read_write_in_expression = "warn"
+mod_module_files = "warn"
+multiple_inherent_impl = "warn"
+panic = "warn"
+panic_in_result_fn = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
+redundant_type_annotations = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+same_name_method = "warn"
+# Pairs with mod_module_files: `foo.rs` + `foo/`, not `foo/mod.rs`.
+self_named_module_files = "allow"
+str_to_string = "warn"
+string_add = "warn"
+string_lit_chars_any = "warn"
+tests_outside_test_module = "warn"
+todo = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unimplemented = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_self_imports = "warn"
+unneeded_field_pattern = "warn"
+unreachable = "warn"
+unseparated_literal_suffix = "warn"
+unused_result_ok = "warn"
+unwrap_in_result = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
+panic = "abort"
